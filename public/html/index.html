@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+    <meta name="generator" content="Hugo 0.84.0">
+    <title>Face Recognition System</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .bd-placeholder-img {
+            font-size: 1.125rem;
+            text-anchor: middle;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            user-select: none;
+        }
+
+        @media (min-width: 768px) {
+            .bd-placeholder-img-lg {
+                font-size: 3.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <div class="album py-5 bg-light">
+            <div class="container">
+                <div class="row mb-2">
+                    <div class="col-auto">
+                        <p id="status">OpenCV.js is loading...</p>
+                    </div>
+                    <div class="col-auto">
+                        <p>Match Score: </p>
+                        <p id="score"></p>
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-sm-3">
+                        <input type="text" id="enrollName" class="form-control form-control-sm"
+                            placeholder="Applicant Name" />
+                    </div>
+                    <div class="col-sm-3">
+                        <input class="form-control form-control-sm" type="file" id="enrollImg" name="enrollImg" />
+                    </div>
+                    <div class="col-sm-3">
+                        <button id="enrollImageButton" type="button" class="btn btn-primary">Enroll</button>
+                    </div>
+                </div>
+
+                <div class="row mb-2">
+                    <div class="col-sm-3">
+                        <input type="text" class="form-control form-control-sm" id="name"
+                            placeholder="Identifier Name" />
+                    </div>
+                    <div class="col-sm-3">
+                        <input class="form-control form-control-sm" type="file" id="matchImage" name="matchImage">
+                    </div>
+                    <div class="col-auto">
+                        <button id="matchImageButton" type="button" class="btn btn-primary">Match Photo</button>
+                    </div>
+                    <div class="col-auto">
+                        <button id="startStopButton" type="button" class="btn btn-primary"
+                            disabled="true">Webcam</button>
+                    </div>
+                </div>
+
+
+                <!-- Images -->
+                <div class="row align-items-md-stretch">
+                    <div class="col-md-6">
+                        <div class="h-100 p-5 bg-light border rounded-3">
+                            <img id="matchImageSrc" alt="No Image" hidden />
+                            <canvas id="output" style="width: 320; height: 240;"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="h-100 p-5 bg-light border rounded-3">
+                            <h2>Add borders</h2>
+                            <canvas id="face"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-muted py-2">
+        <div class="container">
+            <p class="float-end mb-1">
+                <a href="#">Back to top</a>
+            </p>
+            <p class="mb-1">Face Recognition System, Copyright &copy; ASA International</p>
+        </div>
+    </footer>
+
+    <script src="/js/jquery.min.js" type="text/javascript"></script>
+    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/main.js" type="text/javascript"></script>
+    <script async src="/js/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+    <script src="/js/utils.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            loadImage();
+
+
+            // add button events
+            //! [add camera start/stop button event] 
+            $("#startStopButton").click(function (e) {
+                e.preventDefault();
+
+                console.log("Running status: " + isRunning);
+                if (isRunning) {
+                    isRunning = false;
+                    document.getElementById('startStopButton').innerHTML = 'Start';
+                } else {
+                    run();
+                }
+            });
+            //! [add camera start/stop button event]
+
+            //! [enroll image button event]
+
+            //! [match image button event]
+            $("#matchImageButton").click(function (e) {
+                e.preventDefault();
+                checkImage();
+            });
+        });
+
+        // document.getElementById('startStopButton').onclick = function toggle() {
+        //     console.log("Running status: " + isRunning);
+        //     if (isRunning) {
+        //         isRunning = false;
+        //         document.getElementById('startStopButton').innerHTML = 'Start';
+        //     } else {
+        //         run();
+        //     }
+        // };
+    </script>
+</body>
+
+</html>
