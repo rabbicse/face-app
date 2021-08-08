@@ -4,6 +4,8 @@ let persons = {};
 let camera = undefined;
 let isRunning = false;
 let isRecognizing = false;
+let isEnrolling = false;
+let isEnrolled = false;
 
 const webCamActive = "Webcam";
 const webCamInactive = "Webcam Off";
@@ -17,6 +19,8 @@ let matchimageElement = undefined;
 let matchInputElement = undefined;
 let enrollImageElement = undefined;
 let enrollInputElement = undefined;
+
+let toast = undefined;
 
 function onDocumentReady() {
     $(document).ready(function () {
@@ -32,6 +36,15 @@ function onDocumentReady() {
         $("#progress").hide();
         $("#progressEnroll").hide();
 
+        // Toast
+        var toastElList = [].slice.call(document.querySelectorAll('.toast'))
+        var toastList = toastElList.map(function (toastEl) {
+            return new bootstrap.Toast(toastEl)
+        });
+        // console.log(toastList);
+        // toastList.forEach(toast => toast.show()); // This show them
+        toast = toastList[0];
+
         //! [Add image event listeners]
         addImageEventListeners();
         //! [Add image event listeners]
@@ -46,6 +59,7 @@ function onDocumentReady() {
             if (isRunning) {
                 isRunning = false;
                 $('#startStopButton').html(webCamActive);
+                stopStreamedVideo(camera);
             } else {
                 // Get a permission from user to use a camera.
                 navigator.mediaDevices.getUserMedia({ video: true, audio: false })
@@ -67,6 +81,13 @@ function onDocumentReady() {
             onEnrollImage();
         });
         //! [enroll image button event]
+
+        //! [enroll webcam button event]
+        $("#enrollWebcamButton").click(function (e) {
+            e.preventDefault();
+            onEnrollWebcam();
+        });
+        //! [enroll webcam button event]
 
         //! [match image button event]
         $("#matchImageButton").click(function (e) {
@@ -90,7 +111,12 @@ async function onOpenCvReady() {
     // loadModels(processAsync);
     await initDnn();
 
-    $('#status').html('Loaded...');
+    showMessage("Dnn models loaded...");
+}
+
+function showMessage(msg) {
+    $('#status').html(msg);
+    toast.show();
 }
 
 async function initDnn() {
@@ -145,15 +171,40 @@ async function downloadFileAsync(path, uri) {
     });
 }
 
-function processAsync() {
+function processWebcamAsync(callback) {
     // Get a permission from user to use a camera.
     navigator.mediaDevices.getUserMedia({ video: true, audio: false })
         .then(function (stream) {
             camera.srcObject = stream;
             camera.onloadedmetadata = function (e) {
                 camera.play();
+
+                // callback
+                callback();
             };
         });
+}
+
+function stopStreamedVideo(videoElem) {
+    const stream = videoElem.srcObject;
+    const tracks = stream.getTracks();
+
+    tracks.forEach(function (track) {
+        track.stop();
+    });
+
+    videoElem.srcObject = null;
+}
+
+function stopStreamedVideo(videoElem) {
+    const stream = videoElem.srcObject;
+    const tracks = stream.getTracks();
+
+    tracks.forEach(function (track) {
+        track.stop();
+    });
+
+    videoElem.srcObject = null;
 }
 
 //! [Run face detection model]
@@ -178,6 +229,10 @@ function detectFaces(img) {
             faces.push({ x: left, y: top, width: right - left, height: bottom - top })
         }
     }
+
+    if(faces.length < 1) {
+        showMessage("No face detecteed...");
+    }
     blob.delete();
     out.delete();
     return faces;
@@ -199,7 +254,8 @@ async function enrollFace(formData) {
             mimeType: "multipart/form-data",
             success: function (result) {
                 console.log("Enroll success...");
-                // console.log(result);
+                showMessage("Enroll Success!");
+                isEnrolled = true;
             },
             error: function (err) {
                 console.log("Error...");
@@ -231,7 +287,7 @@ async function recognizeFace(formData) {
                 var score = (parseFloat(matchScore) * 100).toFixed(2) + '%';
                 $("#score").html(score);
 
-                if (matchScore >= 0.60) {
+                if (matchScore >= 0.55) {
                     $("#matchStatus").html("Matched");
                 } else {
                     $("#matchStatus").html("Not Matched");
@@ -288,27 +344,24 @@ async function processFrame(frame, frameBGR) {
         return;
     }
 
+    let oFrame = frame.clone();
+
     faces.forEach(function (rect) {
-        // cv.rectangle(frame, { x: rect.x, y: rect.y }, { x: rect.x + rect.width, y: rect.y + rect.height }, [0, 255, 0, 255]);
+        // draw over processed frame
+        cv.rectangle(frame, { x: rect.x, y: rect.y }, { x: rect.x + rect.width, y: rect.y + rect.height }, [0, 255, 0, 255]);
+
+
         let xTh = rect.width / 10;
         let yTh = rect.height / 10;
         let x = Math.max(rect.x - xTh, 0);
         let y = Math.max(rect.y - yTh, 0);
         let x1 = Math.min(rect.x + rect.width + xTh, frame.cols);
         let y1 = Math.min(rect.y + rect.height + yTh, frame.rows);
-        var rct = new cv.Rect(x, y, x1 - x, y1 - y);
-        console.log(rct);
-        var face = frame.roi(rct);
+        let rct = new cv.Rect(x, y, x1 - x, y1 - y);
+        // console.log(rct);
+        let face = oFrame.roi(rct);
         // face = cv.cvtColor(face, cv.COLOR_RGBA2BGR);
         cv.imshow(faceCanvas, face);
-
-        // let mat = new cv.Mat();
-        // cv.imencode("jpg", face, mat);
-
-        // var name = recognize(face);
-        // cv.putText(frame, name, { x: rect.x, y: rect.y }, cv.FONT_HERSHEY_SIMPLEX, 1.0, [0, 255, 0, 255]);
-
-        // recognizeFace(face);
 
         return faceCanvas.toBlob(async function (blob) {
             $("#progress").show();
@@ -338,8 +391,14 @@ async function enrollImage(frame, frameBGR) {
             return;
         }
 
+        let oFrame = frame.clone();
+
         faces.forEach(function (rect) {
-            // cv.rectangle(frame, { x: rect.x, y: rect.y }, { x: rect.x + rect.width, y: rect.y + rect.height }, [0, 255, 0, 255]);
+            cv.rectangle(frame, { x: rect.x, y: rect.y }, { x: rect.x + rect.width, y: rect.y + rect.height }, [0, 255, 0, 255]);
+
+            console.log("showing frame...");
+            cv.imshow(output, frame);
+
             let xTh = rect.width / 10;
             let yTh = rect.height / 10;
             let x = Math.max(rect.x - xTh, 0);
@@ -349,10 +408,11 @@ async function enrollImage(frame, frameBGR) {
             var rct = new cv.Rect(x, y, x1 - x, y1 - y);
             console.log(rct);
             // var face = frame.roi(rect);
-            var face = frame.roi(rct);
+            var face = oFrame.roi(rct);
             cv.imshow(faceCanvas, face);
 
             faceCanvas.toBlob(async function (blob) {
+                isEnrolling = true;
                 $("#progressEnroll").show();
                 const formData = new FormData();
                 formData.append("image", blob, "photo.jpg");
@@ -360,6 +420,7 @@ async function enrollImage(frame, frameBGR) {
                 console.log(formData);
                 await enrollFace(formData);
                 $("#progressEnroll").hide();
+                isEnrolling = false;
             }, "image/jpeg", 0.95);
         });
     } catch (err) {
@@ -420,7 +481,7 @@ function checkImage() {
 //! [match image from client machine]
 
 
-//! [match image from client machine]
+//! [enroll image from client machine]
 async function onEnrollImage() {
     let frame = cv.imread(enrollImageElement);
     let frameBGR = new cv.Mat(frame.cols, frame.rows, cv.CV_8UC3);
@@ -429,8 +490,55 @@ async function onEnrollImage() {
     console.log("ok....onEnrollImage");
     await enrollImage(frame, frameBGR);
 }
-//! [match image from client machine]
+//! [enroll image from client machine]
 
+
+//! [enroll webcam from client webcam]
+async function onEnrollWebcam() {
+
+    processWebcamAsync(enrollFrame);
+}
+//! [enroll photo from client webcam]
+
+// enroll frame
+async function enrollFrame() {
+    // let frame = cv.imread(enrollImageElement);
+    // let frameBGR = new cv.Mat(frame.cols, frame.rows, cv.CV_8UC3);
+    // cv.cvtColor(frame, frameBGR, cv.COLOR_RGBA2BGR);
+
+    // console.log("ok....onEnrollImage");
+    // await enrollImage(frame, frameBGR);
+
+
+    //! [Open a camera stream]
+    var cap = new cv.VideoCapture(camera);
+    var frame = new cv.Mat(camera.height, camera.width, cv.CV_8UC4);
+    var frameBGR = new cv.Mat(camera.height, camera.width, cv.CV_8UC3);
+    //! [Open a camera stream]
+
+    cap.read(frame);  // Read a frame from camera
+    cv.cvtColor(frame, frameBGR, cv.COLOR_RGBA2BGR);
+
+    var begin = Date.now();
+
+    if (!isEnrolling) {
+        console.log("enrolling...");
+        await enrollImage(frame, frameBGR);
+        console.log("enrolled...");
+    }
+
+    // Loop this function.
+    if (!isEnrolled) {
+        console.log("not enrolled.....");
+        var delay = 1000 / FPS - (Date.now() - begin);
+        setTimeout(enrollFrame, delay);
+    } else {
+        console.log("enrolled...");
+        isEnrolled = false;
+        stopStreamedVideo(camera);
+    }
+}
+//
 
 async function playWebcam() {
     isRunning = true;

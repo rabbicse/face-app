@@ -29,9 +29,24 @@
 </head>
 
 <body class="d-flex flex-column h-100">
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
+        <div id="liveToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto">Face Recognition System</strong>
+                <small>Just Now</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="status">
+            </div>
+        </div>
+    </div>
+
+
     <main class="flex-shrink-0">
         <div class="album py-4 bg-light">
             <div class="container">
+
+
                 <div class="row mb-2">
                     <div class="col-sm-3">
                         <input type="text" id="enrollName" class="form-control form-control-sm"
@@ -43,6 +58,9 @@
                     </div>
                     <div class="col-auto">
                         <button id="enrollImageButton" type="button" class="btn btn-primary">Enroll</button>
+                    </div>
+                    <div class="col-auto">
+                        <button id="enrollWebcamButton" type="button" class="btn btn-primary">Enroll Webcam</button>
                     </div>
                     <div class="col-auto">
                         <div class="spinner-border text-primary" role="status" id="progressEnroll">
@@ -87,8 +105,7 @@
                         <div class="h-100 p-2 bg-light border rounded-3">
                             <div class="row">
                                 <div class="col-sm-7">
-                                    <canvas id="face"
-                                        style="width: 70%; max-width: 70%; min-width: 240px;"></canvas>
+                                    <canvas id="face" style="width: 70%; max-width: 70%; min-width: 240px;"></canvas>
                                 </div>
                                 <div class="col-sm-3">
                                     <div class="card" style="width: 12rem;">
@@ -116,11 +133,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Alert -->
-                <div class="alert alert-success" role="alert">
-                    <p class="mb-0" id="status"></p>
                 </div>
             </div>
         </div>
