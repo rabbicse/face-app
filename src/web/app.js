@@ -10,9 +10,14 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/html/index.html'))
 })
 
-app.get('/api/face/v1', (req, res) => {
-    res.send("Hello World!")
+app.get('/enroll', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/html/enroll.html'))
 })
+
+app.get('/match', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/html/match.html'))
+})
+
 
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`)

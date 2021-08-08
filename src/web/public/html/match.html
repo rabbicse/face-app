@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+    <meta name="generator" content="Hugo 0.84.0">
+    <title>Face Recognition System</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .bd-placeholder-img {
+            font-size: 1.125rem;
+            text-anchor: middle;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            user-select: none;
+        }
+
+        @media (min-width: 768px) {
+            .bd-placeholder-img-lg {
+                font-size: 3.5rem;
+            }
+        }
+    </style>
+</head>
+
+<body class="d-flex flex-column h-100">
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
+        <div id="liveToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto">Face Recognition System</strong>
+                <small>Just Now</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="status">
+            </div>
+        </div>
+    </div>
+
+
+    <main class="flex-shrink-0">
+        <div class="album py-4 bg-light">
+            <div class="container">
+                <div class="row mb-2">
+                    <div class="col-sm-3">
+                        <input type="text" class="form-control form-control-sm" id="name"
+                            placeholder="Identifier Name" />
+                    </div>
+                    <div class="col-sm-3">
+                        <img id="matchImageSrc" alt="No Image" hidden />
+                        <input class="form-control form-control-sm" type="file" id="matchImage" />
+                    </div>
+                    <div class="col-auto">
+                        <button id="matchImageButton" type="button" class="btn btn-primary">Match Photo</button>
+                    </div>
+                    <div class="col-auto">
+                        <button id="startStopButton" type="button" class="btn btn-primary">Webcam</button>
+                    </div>
+                    <div class="col-auto">
+                        <div class="spinner-border text-primary" role="status" id="progress">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Images -->
+                <div class="row mb-5">
+                    <div class="col-md-6">
+                        <div class="h-100 p-1 bg-light border rounded-3">
+                            <canvas id="output"
+                                style="width: 100%; max-width: 100%; min-width: 200px; min-height: 200px;"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="h-100 p-2 bg-light border rounded-3">
+                            <div class="row">
+                                <div class="col-sm-7">
+                                    <canvas id="face" style="width: 70%; max-width: 70%; min-width: 240px;"></canvas>
+                                </div>
+                                <div class="col-sm-3">
+                                    <div class="card" style="width: 12rem;">
+                                        <h5 class="card-header">
+                                            Recognition
+                                        </h5>
+                                        <ul class="list-group mb-3">
+                                            <li class="list-group-item text-center">
+                                                <h6>Match Score</h6>
+                                                <p id="score"></p>
+                                            </li>
+                                            <!-- <li class="list-group-item">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                            </li> -->
+                                        </ul>
+
+                                        <div class="card-body text-center">
+                                            <h6>Match Status: </h6>
+                                            <p id="matchStatus"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+
+    <footer class="footer mt-auto py-3 bg-light">
+        <div class="container">
+            <span class="text-muted">Face Recognition System, Copyright &copy; ASA International</span>
+            <p class="float-end mb-1">
+                <a href="#">Back to top</a>
+            </p>
+        </div>
+    </footer>
+
+    <script src="/js/jquery.min.js" type="text/javascript"></script>
+    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/vision.js" type="text/javascript"></script>
+    <script src="/js/face.match.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        onDocumentReady();
+    </script>
+    <script async src="/js/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+    <script src="/js/utils.js" type="text/javascript"></script>
+</body>
+
+</html>
