@@ -121,6 +121,16 @@ function stopStreamedVideo(videoElem) {
 }
 //! [Stop all user media]
 
+//! [Convert Canvas to blob]
+function getCanvasBlob(canvas) {
+    return new Promise(function (resolve, reject) {
+        canvas.toBlob(function (blob) {
+            resolve(blob)
+        }, "image/jpeg", 0.95)
+    })
+}
+//! [Convert Canvas to blob]
+
 //! [Thread Sleep]
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
