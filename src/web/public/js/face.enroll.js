@@ -175,15 +175,6 @@ async function enrollBlob() {
 }
 //! [Process Image to Enroll]
 
-//! [Get frame from canvas]
-function getCanvasBlob(canvas) {
-    return new Promise(function (resolve, reject) {
-        canvas.toBlob(function (blob) {
-            resolve(blob)
-        })
-    }, "image/jpeg", 0.95)
-}
-//! [Get frame from canvas]
 
 //! [add event listener on selected image from client machine to match]
 function addImageEventListeners() {

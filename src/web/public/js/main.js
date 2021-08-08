@@ -230,7 +230,7 @@ function detectFaces(img) {
         }
     }
 
-    if(faces.length < 1) {
+    if (faces.length < 1) {
         showMessage("No face detecteed...");
     }
     blob.delete();
@@ -333,12 +333,6 @@ async function captureFrame() {
 
 //!
 async function processFrame(frame, frameBGR) {
-    var matchName = $("#name").val();
-
-    if (matchName === '') {
-        return;
-    }
-
     var faces = detectFaces(frameBGR);
     if (faces.length !== 1) {
         return;
