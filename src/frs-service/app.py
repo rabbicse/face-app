@@ -1,14 +1,12 @@
 import json
-import logging
 import os
 import warnings
-
 import cv2.cv2 as cv2
 import numpy
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-
 from face_handler import FaceHandler
+from utils import log_utils
 from utils.redis_handler import RedisHandler
 
 warnings.filterwarnings("ignore")
@@ -16,7 +14,7 @@ warnings.filterwarnings("ignore")
 app = Flask(__name__, static_url_path="/static")
 CORS(app)
 
-logger = logging.getLogger(__name__)
+logger = log_utils.LogUtils().get_logger(__name__)
 
 face_handler = FaceHandler()
 
@@ -90,7 +88,7 @@ def match_v1():
 
         # todo: insert database and get uniqe id
         dec_emb = redis_handler.search_data(name)
-        print(dec_emb)
+        # print(dec_emb)
 
         # todo: match
         score = face_handler.match(emb, dec_emb)
