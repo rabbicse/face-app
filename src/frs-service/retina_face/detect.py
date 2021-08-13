@@ -1,8 +1,6 @@
 from __future__ import print_function
 
-import argparse
 import time
-
 import cv2
 import numpy as np
 import torch
@@ -13,20 +11,6 @@ from retina_face.prior_box import PriorBox
 from retina_face.retinaface import RetinaFace
 from retina_face.utils.box_utils import decode, decode_landm
 from retina_face.utils.nms.py_cpu_nms import py_cpu_nms
-
-# parser = argparse.ArgumentParser(description='Retinaface')
-#
-# parser.add_argument('-m', '--trained_model', default='./weights/Resnet50_Final.pth',
-#                     type=str, help='Trained state_dict file path to open')
-# parser.add_argument('--network', default='resnet50', help='Backbone network mobile0.25 or resnet50')
-# parser.add_argument('--cpu', action="store_true", default=True, help='Use cpu inference')
-# parser.add_argument('--confidence_threshold', default=0.02, type=float, help='confidence_threshold')
-# parser.add_argument('--top_k', default=5000, type=int, help='top_k')
-# parser.add_argument('--nms_threshold', default=0.4, type=float, help='nms_threshold')
-# parser.add_argument('--keep_top_k', default=750, type=int, help='keep_top_k')
-# parser.add_argument('-s', '--save_image', action="store_true", default=True, help='show detection results')
-# parser.add_argument('--vis_thres', default=0.6, type=float, help='visualization_threshold')
-# args = parser.parse_args()
 
 confidence_threshold = 0.02
 top_k = 5000
@@ -41,22 +25,22 @@ def check_keys(model, pretrained_state_dict):
     used_pretrained_keys = model_keys & ckpt_keys
     unused_pretrained_keys = ckpt_keys - model_keys
     missing_keys = model_keys - ckpt_keys
-    print('Missing keys:{}'.format(len(missing_keys)))
-    print('Unused checkpoint keys:{}'.format(len(unused_pretrained_keys)))
-    print('Used keys:{}'.format(len(used_pretrained_keys)))
-    assert len(used_pretrained_keys) > 0, 'load NONE from pretrained checkpoint'
-    return True
+    # print('Missing keys:{}'.format(len(missing_keys)))
+    # print('Unused checkpoint keys:{}'.format(len(unused_pretrained_keys)))
+    # print('Used keys:{}'.format(len(used_pretrained_keys)))
+    # assert len(used_pretrained_keys) > 0, 'load NONE from pretrained checkpoint'
+    return len(used_pretrained_keys) > 0
 
 
 def remove_prefix(state_dict, prefix):
     ''' Old style model is stored with all names of parameters sharing common prefix 'module.' '''
-    print('remove prefix \'{}\''.format(prefix))
+    # print('remove prefix \'{}\''.format(prefix))
     f = lambda x: x.split(prefix, 1)[-1] if x.startswith(prefix) else x
     return {f(key): value for key, value in state_dict.items()}
 
 
 def load_model(model, pretrained_path, load_to_cpu=True):
-    print('Loading pretrained model from {}'.format(pretrained_path))
+    # print('Loading pretrained model from {}'.format(pretrained_path))
     if load_to_cpu:
         pretrained_dict = torch.load(pretrained_path, map_location=lambda storage, loc: storage)
     else:
@@ -83,7 +67,7 @@ def detect_face(image_path, model_path, network="resnet50", cpu=True):
     net = RetinaFace(cfg=cfg, phase='test')
     net = load_model(net, model_path, load_to_cpu=True)
     net.eval()
-    print('Finished loading model!')
+    # print('Finished loading model!')
     # print(net)
     cudnn.benchmark = False
     device = torch.device("cpu" if cpu else "cuda")
@@ -104,7 +88,7 @@ def detect_face(image_path, model_path, network="resnet50", cpu=True):
 
     tic = time.time()
     loc, conf, landms = net(img)  # forward pass
-    print('net forward time: {:.4f}'.format(time.time() - tic))
+    # print('net forward time: {:.4f}'.format(time.time() - tic))
 
     priorbox = PriorBox(cfg, image_size=(im_height, im_width))
     priors = priorbox.forward()
@@ -194,7 +178,7 @@ class FaceDetect:
         net = RetinaFace(cfg=self.cfg, phase=None)
         net = load_model(net, model_path, load_to_cpu=True)
         net.eval()
-        print('Finished loading model!')
+        # print('Finished loading model!')
         # print(net)
         cudnn.benchmark = False
         self.device = torch.device("cpu" if cpu else "cuda")
@@ -214,7 +198,7 @@ class FaceDetect:
 
         tic = time.time()
         loc, conf, landms = self.net(img)  # forward pass
-        print('net forward time: {:.4f}'.format(time.time() - tic))
+        # print('net forward time: {:.4f}'.format(time.time() - tic))
 
         priorbox = PriorBox(self.cfg, image_size=(im_height, im_width))
         priors = priorbox.forward()
@@ -272,26 +256,4 @@ class FaceDetect:
                               (b[11], b[12]),
                               (b[13], b[14])])
 
-        # return detections, landmarks
-        #     text = "{:.4f}".format(b[4])
-        #     b = list(map(int, b))
-        #     cv2.rectangle(img_raw, (b[0], b[1]), (b[2], b[3]), (0, 0, 255), 2)
-        #     cx = b[0]
-        #     cy = b[1] + 12
-        #     cv2.putText(img_raw, text, (cx, cy),
-        #                 cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
-        #
-        #     # landms
-        #     cv2.circle(img_raw, (b[5], b[6]), 1, (0, 0, 255), 4)
-        #     cv2.circle(img_raw, (b[7], b[8]), 1, (0, 255, 255), 4)
-        #     cv2.circle(img_raw, (b[9], b[10]), 1, (255, 0, 255), 4)
-        #     cv2.circle(img_raw, (b[11], b[12]), 1, (0, 255, 0), 4)
-        #     cv2.circle(img_raw, (b[13], b[14]), 1, (255, 0, 0), 4)
-        #
-        # # save image
-        # name = "test.jpg"
-        # cv2.imwrite(name, img_raw)
-        # cv2.imshow('result', img_raw)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
         return detections, landmarks
