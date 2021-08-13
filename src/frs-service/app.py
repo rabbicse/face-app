@@ -3,7 +3,7 @@ import os
 import warnings
 import cv2.cv2 as cv2
 import numpy
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, abort
 from flask_cors import CORS
 from face_handler import FaceHandler
 from utils import log_utils
@@ -83,6 +83,9 @@ def match_v1():
         frame = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED)
         emb = face_handler.extract_embedding(frame)
 
+        if type(emb) is int and emb == -2:
+            return jsonify({'status': 2, 'score': str(-3)})
+
         person_info = json.loads(data)
         name = person_info['name']
 
@@ -97,6 +100,30 @@ def match_v1():
     except Exception as x:
         logger.error(f'Error when recognize by image. Details: {x}')
         return jsonify({'msg': 'Not a valid image!'})
+
+
+@app.route('/match/v2', methods=['POST'])
+def match_v2():
+    photo = request.files.get('photo')
+    embeddings = request.form.get('embeddings')
+    try:
+        photo_data = photo.read()
+        frame = numpy.frombuffer(photo_data, dtype=numpy.uint8)
+        frame = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED)
+        emb = face_handler.extract_embedding(frame)
+
+        embeddings_data = json.loads(embeddings)
+
+        dec_emb = numpy.asarray(embeddings_data['embedding'])
+        print(dec_emb)
+
+        # match
+        score = face_handler.match(emb, dec_emb)
+
+        return jsonify({'status': 0, 'score': str(score)})
+    except Exception as x:
+        logger.error(f'Error when recognize by image. Details: {x}')
+        # return abort()
 
 
 @app.route('/test/v1', methods=['POST'])

@@ -5,6 +5,7 @@ import cv2.cv2 as cv2
 
 from arc_face import preprocessor
 from arc_face.recognition import Embedding
+from dnn_utils.pose_estimation import PoseEstimation
 from retina_face.detect import FaceDetect
 from utils import log_utils
 from utils.decorators import timeit
@@ -22,6 +23,7 @@ class FaceHandler:
                                         network='mobile0.25')
         self.arc_face_model = os.path.abspath('models/backbone-r100.pth')
         self.recognition = Embedding('models/backbone-r100.pth')
+        self.pose_estimator = PoseEstimation()
 
     @timeit
     def detect_faces(self, img):
@@ -133,11 +135,15 @@ class FaceHandler:
 
         self.logger.info(f'Total faces detected: {len(faces)}')
         if len(faces) <= 0:
-            return
+            return -1
 
         # extract rect and landmark=5
         box = faces[0]
         landmark5 = landmarks[0]
+
+        # check face pose
+        if not self.pose_estimator.estimate(img, box, landmark5):
+            return -2
 
         # preprocess face before get embeddings
         crop_img = self.pre_process_face(img, box, landmark5)
