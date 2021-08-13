@@ -54,7 +54,7 @@ function onDocumentReady() {
         //! [match image button event]
         $("#matchImageButton").click(function (e) {
             e.preventDefault();
-            checkImage();
+            matchImage();
         });
     });
 }
@@ -101,6 +101,14 @@ async function recognizeFace(formData) {
                 console.log(result);
                 var parsedJson = $.parseJSON(result);
                 var matchScore = parsedJson["score"];
+
+                if(matchScore < 0) {
+                    showMessage("Please look at the camera...");
+                    $("#score").html("Undefined");
+                    $("#matchStatus").html("Not Matched");
+                    return;
+                }
+
                 var score = (parseFloat(matchScore) * 100).toFixed(2) + '%';
                 $("#score").html(score);
 
@@ -205,6 +213,13 @@ async function matchBlob() {
         $("#progress").show();
         let name = $("#name").val();
         let blob = await getCanvasBlob(faceCanvas);
+
+        console.log(blob);
+        if(blob === null || blob === undefined) {
+            showMessage("No detected frame found!");
+            return;
+        }
+
         const formData = new FormData();
         formData.append("image", blob, "photo.jpg");
         formData.append("data", JSON.stringify({ "name": name }));
@@ -241,10 +256,12 @@ function addImageEventListeners() {
 //! [add image from client machine and show to canvas]
 
 //! [match image from client machine]
-async function checkImage() {
-    let frame = cv.imread(matchimageElement);
-    let frameBGR = new cv.Mat(frame.cols, frame.rows, cv.CV_8UC3);
-    cv.cvtColor(frame, frameBGR, cv.COLOR_RGBA2BGR);
+async function matchImage() {
+    let name = $("#name").val();
+    if (name == null || name == undefined || name === "") {
+        showMessage("Please enter a valid name...");
+        return;
+    }
 
     // processFrame(frame, frameBGR);
     await matchBlob();
