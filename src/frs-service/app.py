@@ -1,10 +1,14 @@
+import base64
 import json
 import os
 import warnings
 import cv2.cv2 as cv2
 import numpy
+import numpy as np
 from flask import Flask, request, jsonify, abort
 from flask_cors import CORS
+
+from dnn_utils import dnn_converter
 from face_handler import FaceHandler
 from utils import log_utils
 from utils.redis_handler import RedisHandler
@@ -38,15 +42,45 @@ def detect_v1():
 
 @app.route('/embedding/v1', methods=['POST'])
 def extract_embedding_v1():
-    photo = request.get_data()
+    photo = request.files.get('photo')
     try:
-        data = numpy.frombuffer(photo, dtype=numpy.uint8)
+        photo_data = photo.read()
+
+        data = numpy.frombuffer(photo_data, dtype=numpy.uint8)
         frame = cv2.imdecode(data, cv2.IMREAD_UNCHANGED)
         emb = face_handler.extract_embedding(frame)
-        return jsonify({'status': 0, 'embedding': emb.tolist()})
+        if type(emb) is int and emb == -2:
+            return jsonify({'status': 2, 'embedding': str(-3)})
+
+        emb_bytes = emb.tobytes()
+        emb_b64 = base64.b64encode(emb_bytes)
+        embedding = emb_b64.decode('ascii')
+        return jsonify({'status': 0, 'embedding': embedding})
     except Exception as x:
         logger.error(f'Error when recognize by image. Details: {x}')
         return jsonify({'msg': 'Not a valid image!'})
+
+
+@app.route('/embedding/v2', methods=['POST'])
+def extract_embedding_v2():
+    photo = request.files.get('photo')
+    try:
+        photo_data = photo.read()
+
+        data = numpy.frombuffer(photo_data, dtype=numpy.uint8)
+        frame = cv2.imdecode(data, cv2.IMREAD_UNCHANGED)
+        emb = face_handler.extract_embedding(frame)
+        if type(emb) is int and emb == -2:
+            return jsonify({'status': 2, 'embedding': str(-3)})
+
+        # emb_bytes = emb.tobytes()
+        # emb_b64 = base64.b64encode(emb_bytes)
+        # embedding = emb_b64.decode('ascii')
+        embedding = dnn_converter.encode_np(emb)
+        return jsonify({'status': 0, 'embedding': embedding})
+    except Exception as x:
+        logger.error(f'Error when recognize by image. Details: {x}')
+        return jsonify({'msg': f'Unexpected Exception: {x}'})
 
 
 @app.route('/enroll/v1', methods=['POST'])
@@ -112,13 +146,23 @@ def match_v2():
         frame = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED)
         emb = face_handler.extract_embedding(frame)
 
-        embeddings_data = json.loads(embeddings)
+        if type(emb) is int and emb == -2:
+            return jsonify({'status': 2, 'score': str(-3)})
 
-        dec_emb = numpy.asarray(embeddings_data['embedding'])
-        print(dec_emb)
+        embeddings_data = json.loads(embeddings)
+        embedding_b64 = embeddings_data['embedding']
+        embedding = dnn_converter.decode_np(embedding_b64)
+        # print(embedding)
+        # embedding = base64.b64decode(embedding_b64)
+        # # print(embedding)
+        # dec_emb = np.frombuffer(embedding)
+        # print(dec_emb.shape)
+        # print('done....')
 
         # match
-        score = face_handler.match(emb, dec_emb)
+        score = face_handler.match(emb, embedding)
+
+        # print(score)
 
         return jsonify({'status': 0, 'score': str(score)})
     except Exception as x:
