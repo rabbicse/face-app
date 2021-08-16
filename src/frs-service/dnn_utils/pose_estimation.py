@@ -34,7 +34,7 @@ class PoseEstimation:
                          lm[4]]
             imgpts, modelpts, roll, pitch, yaw, nose = self.face_orientation(pic, to_numpy(landmarks))
 
-            return abs(roll) < 15 and abs(pitch) < 20 and abs(yaw) < 10
+            return abs(roll) < 25 and abs(pitch) < 25 and abs(yaw) < 20
 
             # todo: visualize
             # if is_draw:
