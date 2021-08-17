@@ -76,7 +76,7 @@ def extract_embedding_v2():
         # emb_bytes = emb.tobytes()
         # emb_b64 = base64.b64encode(emb_bytes)
         # embedding = emb_b64.decode('ascii')
-        embedding = dnn_converter.encode_np(emb)
+        embedding = dnn_converter.encode_np_hex(emb)
         return jsonify({'status': 0, 'embedding': embedding})
     except Exception as x:
         logger.error(f'Error when recognize by image. Details: {x}')
@@ -151,12 +151,8 @@ def match_v2():
 
         embeddings_data = json.loads(embeddings)
         embedding_b64 = embeddings_data['embedding']
-        embedding = dnn_converter.decode_np(embedding_b64)
+        embedding = dnn_converter.decode_np_hex(embedding_b64)
         # print(embedding)
-        # embedding = base64.b64decode(embedding_b64)
-        # # print(embedding)
-        # dec_emb = np.frombuffer(embedding)
-        # print(dec_emb.shape)
         # print('done....')
 
         # match
