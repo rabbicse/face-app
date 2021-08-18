@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from logging.config import dictConfig
-from utils.singleton_decorator import SingletonDecorator
+from vision_utils.singleton_decorator import SingletonDecorator
 
 
 @SingletonDecorator

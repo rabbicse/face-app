@@ -1,10 +1,7 @@
-import os
-import os.path
-import sys
+import numpy as np
 import torch
 import torch.utils.data as data
-import cv2
-import numpy as np
+
 
 class WiderFaceDetection(data.Dataset):
     def __init__(self, txt_path, preproc=None):

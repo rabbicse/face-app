@@ -9,6 +9,7 @@ from numpy.linalg import norm
 from skimage import transform as trans
 
 from arc_face.backbones import get_model
+from vision_utils.decorators import TimeitDecorator
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ class Embedding(object):
         input_blob[1] = img_flip
         return input_blob
 
+    @TimeitDecorator()
     @torch.no_grad()
     def forward_db(self, batch_data):
         imgs = torch.Tensor(batch_data).cpu()

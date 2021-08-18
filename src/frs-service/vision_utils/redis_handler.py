@@ -3,7 +3,7 @@ import struct
 import numpy as np
 import redis
 
-from utils.singleton_decorator import SingletonDecorator
+from vision_utils.singleton_decorator import SingletonDecorator
 
 
 # https://stackoverflow.com/questions/55311399/fastest-way-to-store-a-numpy-array-in-redis
