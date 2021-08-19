@@ -1,5 +1,5 @@
-from arc_face.backbones.iresnet import iresnet18, iresnet34, iresnet50, iresnet100, iresnet200
-from arc_face.backbones.mobilefacenet import get_mbf
+from .iresnet import iresnet18, iresnet34, iresnet50, iresnet100, iresnet200
+from .mobilefacenet import get_mbf
 
 
 def get_model(name, **kwargs):

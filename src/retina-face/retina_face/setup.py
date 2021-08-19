@@ -1,11 +1,11 @@
 import setuptools
 
 setuptools.setup(
-    name="dnn-vision_utils",
+    name="retina-face",
     version="1.0.1",
     author="MD. MEHEDI HASAN RABBI",
     author_email="rabbi.cse.sust.bd@gmail.com",
-    description="DNN related utility package",
+    description="Face Detector .",
     packages=setuptools.find_packages(exclude=("tests",)),
     classifiers=[
         "Programming Language :: Python :: 3",

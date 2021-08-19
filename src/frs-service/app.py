@@ -4,7 +4,7 @@ import os
 import warnings
 import cv2.cv2 as cv2
 import numpy
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 
 from dnn_utils import dnn_converter
@@ -72,16 +72,17 @@ def extract_embedding_v2():
         frame = cv2.imdecode(data, cv2.IMREAD_UNCHANGED)
         emb = face_handler.extract_embedding(frame)
         if type(emb) is int and emb == -2:
-            return jsonify({'status': 2, 'embedding': str(-3)})
+            return Response('Face orientation is not perfect!', status=400)
+            # return jsonify({'status': 2, 'embedding': str(-3)})
 
         # emb_bytes = emb.tobytes()
-        # emb_b64 = base64.b64encode(emb_bytes)
-        # embedding = emb_b64.decode('ascii')
         embedding = dnn_converter.encode_np_hex(emb)
+
         return jsonify({'status': 0, 'embedding': embedding})
     except Exception as x:
         logger.error(f'Error when recognize by image. Details: {x}')
-        return jsonify({'msg': f'Unexpected Exception: {x}'})
+        # return jsonify({'msg': f'Unexpected Exception: {x}'})
+        return Response('Face orientation is not perfect!', status=500)
 
 
 @app.route('/enroll/v1', methods=['POST'])

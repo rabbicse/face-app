@@ -17,7 +17,12 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 - After finishing all installation keep the models directory to executing directory
 - Finally run "run.ps1"
 
-## Notes
+## Build instructions
+```
+python setup.py sdist bdist_wheel
+```
+
+## Special Notes
 ```
 pip install --no-index --find-links ..\wheels\ -r ..\requirements.txt
 ```
