@@ -18,11 +18,11 @@ class FaceHandler:
         self.logger = log_utils.LogUtils().get_logger(self.__class__.__name__)
         self.thresh = 0.2
         self.scales = [240, 720]
-        self.retina_face_model = os.path.abspath('models/mobilenet0.25_Final.pth')
-        self.face_detector = FaceDetect(model_path=self.retina_face_model,
+        retina_face_model_path = os.path.abspath('models/mobilenet0.25_Final.pth')
+        self.face_detector = FaceDetect(model_path=retina_face_model_path,
                                         network='mobile0.25')
-        self.arc_face_model = os.path.abspath('models/backbone-r100.pth')
-        self.recognition = Embedding('models/backbone-r100.pth')
+        arc_face_model_path = os.path.abspath('models/backbone-r100m.pth')
+        self.recognition = Embedding(arc_face_model_path, model_architecture='r100')
         self.pose_estimator = PoseEstimation()
 
     @timeit

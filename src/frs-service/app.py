@@ -4,13 +4,13 @@ import os
 import warnings
 import cv2.cv2 as cv2
 import numpy
-import numpy as np
-from flask import Flask, request, jsonify, abort
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 from dnn_utils import dnn_converter
 from face_handler import FaceHandler
 from vision_utils import log_utils
+from vision_utils.decorators import TimeitDecorator
 from vision_utils.redis_handler import RedisHandler
 
 warnings.filterwarnings("ignore")
@@ -62,6 +62,7 @@ def extract_embedding_v1():
 
 
 @app.route('/embedding/v2', methods=['POST'])
+@TimeitDecorator()
 def extract_embedding_v2():
     photo = request.files.get('photo')
     try:
@@ -137,6 +138,7 @@ def match_v1():
 
 
 @app.route('/match/v2', methods=['POST'])
+@TimeitDecorator()
 def match_v2():
     photo = request.files.get('photo')
     embeddings = request.form.get('embeddings')

@@ -8,27 +8,28 @@ import zfpy
 
 from dnn_utils import dnn_converter
 from face_handler import FaceHandler
+from vision_utils.decorators import timeit
 from vision_utils.redis_handler import RedisHandler
 
 logger = logging.getLogger(__name__)
 
 
 face_handler = FaceHandler()
-# frame = cv2.imread("test_data/480.jpg", cv2.IMREAD_UNCHANGED)
-frame = cv2.imread("test_data/480.jpg", cv2.IMREAD_UNCHANGED)
-# frame = cv2.imread("test_data/screen.jpg", cv2.IMREAD_UNCHANGED)
-emb = face_handler.extract_embedding(frame)
-print(emb)
-# b = emb.tobytes()
-# hex = b.hex()
-# print(b.hex())
-# print(len(hex))
-# b2 = bytes.fromhex(hex)
-# print(b2)
-# d = np.frombuffer(b2)
-# print(d.shape)
 
+@timeit
+def extract_emb():
+    # frame = cv2.imread("test_data/480.jpg", cv2.IMREAD_UNCHANGED)
+    frame = cv2.imread("test_data/480.jpg", cv2.IMREAD_UNCHANGED)
+    # frame = cv2.imread("test_data/screen.jpg", cv2.IMREAD_UNCHANGED)
+    emb = face_handler.extract_embedding(frame)
+    print(emb)
+    # b = emb.tobytes()
+    hex = dnn_converter.encode_np_hex(emb)
+    print(hex)
+    print(len(hex))
 
+for i in range(10):
+    extract_emb()
 
 # en = dnn_converter.encode_np(emb)
 # print(len(en))

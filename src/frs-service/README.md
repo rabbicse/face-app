@@ -16,3 +16,8 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 - Then run "install.ps1"
 - After finishing all installation keep the models directory to executing directory
 - Finally run "run.ps1"
+
+## Notes
+```
+pip install --no-index --find-links ..\wheels\ -r ..\requirements.txt
+```
