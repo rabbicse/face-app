@@ -1,4 +1,4 @@
-# coding: utf-8
+# -*- coding: utf-8 -*-
 import logging
 import cv2
 import numpy as np
@@ -15,11 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 class Embedding(object):
-    def __init__(self, prefix, data_shape=(3, 112, 112), batch_size=1):
+    def __init__(self, model_path, data_shape=(3, 112, 112), batch_size=1, model_architecture="r100"):
         image_size = (112, 112)
         self.image_size = image_size
-        weight = torch.load(prefix, map_location=torch.device('cpu'))
-        resnet = get_model("r100", dropout=0, fp16=False).cpu()
+        weight = torch.load(model_path, map_location=torch.device('cpu'))
+        resnet = get_model(model_architecture, dropout=0, fp16=False).cpu()
         resnet.load_state_dict(weight)
         model = torch.nn.DataParallel(resnet)
         self.model = model
@@ -70,16 +70,6 @@ class Embedding(object):
         imgs.div_(255).sub_(0.5).div_(0.5)
         feat = self.model(imgs)
         return feat.numpy()
-        # feat = feat.reshape([self.batch_size, 2 * feat.shape[1]])
-        # return feat.cpu().numpy()
-
-    # @torch.no_grad()
-    # def forward_db(self, batch_data):
-    #     imgs = torch.Tensor(batch_data).cpu()
-    #     imgs.div_(255).sub_(0.5).div_(0.5)
-    #     feat = self.model(imgs)
-    #     feat = feat.reshape([self.batch_size, 2 * feat.shape[1]])
-    #     return feat.cpu().numpy()
 
     def get_embedding(self, img, rgb_convert=False):
         if img.shape[2] != 3:
@@ -107,10 +97,5 @@ class Embedding(object):
         return sim
 
     def compute_match(self, emb1, emb2):
-        # emb1 = emb1.flatten()
-        # emb2 = emb2.flatten()
         sim = np.dot(emb1, emb2) / (norm(emb1) * norm(emb2))
         return sim
-
-        # sim = np.dot(emb1, emb2.T)
-        # return sim

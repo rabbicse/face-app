@@ -174,8 +174,7 @@ def iresnet34(pretrained=False, progress=True, **kwargs):
 
 
 def iresnet50(pretrained=False, progress=True, **kwargs):
-    return _iresnet('iresnet50', IBasicBlock, [3, 4, 14, 3], pretrained,
-                    progress, **kwargs)
+    return _iresnet('iresnet50', IBasicBlock, [3, 4, 14, 3], pretrained, progress, **kwargs)
 
 
 def iresnet100(pretrained=False, progress=True, **kwargs):
