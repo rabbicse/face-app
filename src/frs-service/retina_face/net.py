@@ -4,6 +4,13 @@ import torch.nn.functional as F
 
 
 def conv_bn(inp, oup, stride=1, leaky=0):
+    """
+    @param inp:
+    @param oup:
+    @param stride:
+    @param leaky:
+    @return:
+    """
     return nn.Sequential(
         nn.Conv2d(inp, oup, 3, stride, 1, bias=False),
         nn.BatchNorm2d(oup),
@@ -12,6 +19,12 @@ def conv_bn(inp, oup, stride=1, leaky=0):
 
 
 def conv_bn_no_relu(inp, oup, stride):
+    """
+    @param inp:
+    @param oup:
+    @param stride:
+    @return:
+    """
     return nn.Sequential(
         nn.Conv2d(inp, oup, 3, stride, 1, bias=False),
         nn.BatchNorm2d(oup),
@@ -19,6 +32,13 @@ def conv_bn_no_relu(inp, oup, stride):
 
 
 def conv_bn1X1(inp, oup, stride, leaky=0):
+    """
+    @param inp:
+    @param oup:
+    @param stride:
+    @param leaky:
+    @return:
+    """
     return nn.Sequential(
         nn.Conv2d(inp, oup, 1, stride, padding=0, bias=False),
         nn.BatchNorm2d(oup),
@@ -27,6 +47,13 @@ def conv_bn1X1(inp, oup, stride, leaky=0):
 
 
 def conv_dw(inp, oup, stride, leaky=0.1):
+    """
+    @param inp:
+    @param oup:
+    @param stride:
+    @param leaky:
+    @return:
+    """
     return nn.Sequential(
         nn.Conv2d(inp, inp, 3, stride, 1, groups=inp, bias=False),
         nn.BatchNorm2d(inp),
@@ -40,6 +67,10 @@ def conv_dw(inp, oup, stride, leaky=0.1):
 
 class SSH(nn.Module):
     def __init__(self, in_channel, out_channel):
+        """
+        @param in_channel:
+        @param out_channel:
+        """
         super(SSH, self).__init__()
         assert out_channel % 4 == 0
         leaky = 0
@@ -53,10 +84,14 @@ class SSH(nn.Module):
         self.conv7X7_2 = conv_bn(out_channel // 4, out_channel // 4, stride=1, leaky=leaky)
         self.conv7x7_3 = conv_bn_no_relu(out_channel // 4, out_channel // 4, stride=1)
 
-    def forward(self, input):
-        conv3X3 = self.conv3X3(input)
+    def forward(self, input_data):
+        """
+        @param input_data:
+        @return:
+        """
+        conv3X3 = self.conv3X3(input_data)
 
-        conv5X5_1 = self.conv5X5_1(input)
+        conv5X5_1 = self.conv5X5_1(input_data)
         conv5X5 = self.conv5X5_2(conv5X5_1)
 
         conv7X7_2 = self.conv7X7_2(conv5X5_1)
@@ -69,6 +104,10 @@ class SSH(nn.Module):
 
 class FPN(nn.Module):
     def __init__(self, in_channels_list, out_channels):
+        """
+        @param in_channels_list:
+        @param out_channels:
+        """
         super(FPN, self).__init__()
         leaky = 0
         if (out_channels <= 64):
@@ -80,13 +119,16 @@ class FPN(nn.Module):
         self.merge1 = conv_bn(out_channels, out_channels, leaky=leaky)
         self.merge2 = conv_bn(out_channels, out_channels, leaky=leaky)
 
-    def forward(self, input):
-        # names = list(input.keys())
-        input = list(input.values())
+    def forward(self, input_data):
+        """
+        @param input_data:
+        @return:
+        """
+        input_data = list(input_data.values())
 
-        output1 = self.output1(input[0])
-        output2 = self.output2(input[1])
-        output3 = self.output3(input[2])
+        output1 = self.output1(input_data[0])
+        output2 = self.output2(input_data[1])
+        output3 = self.output3(input_data[2])
 
         up3 = F.interpolate(output3, size=[output2.size(2), output2.size(3)], mode="nearest")
         output2 = output2 + up3
@@ -127,6 +169,10 @@ class MobileNetV1(nn.Module):
         self.fc = nn.Linear(256, 1000)
 
     def forward(self, x):
+        """
+        @param x:
+        @return:
+        """
         x = self.stage1(x)
         x = self.stage2(x)
         x = self.stage3(x)

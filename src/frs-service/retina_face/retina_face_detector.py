@@ -1,4 +1,3 @@
-import time
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
@@ -9,73 +8,102 @@ from retina_face.data import cfg_mnet, cfg_re50
 from retina_face.prior_box import PriorBox
 from retina_face.retinaface import RetinaFace
 
-confidence_threshold = 0.02
-top_k = 5000
+CONFIDENCE_THRESHOLD = 0.02
+TOP_K = 5000
 nms_threshold = 0.4
 keep_top_k = 750
 vis_thres = 0.6
 
 
-class FaceDetect:
-    def __init__(self, model_path, network="resnet50", cpu=True):
+class RetinaFaceDetector:
+    def __init__(self, model_path, network="resnet50", cpu=True,
+                 mobilenet_model_tar="./models/mobilenetV1X0.25_pretrain.tar"):
+        """
+        @param model_path:
+        @param network:
+        @param cpu:
+        """
         torch.set_grad_enabled(False)
         self.cfg = None
         self.device = None
 
         self.net = self.__create_network(model_path=model_path,
                                          network=network,
-                                         cpu=cpu)
+                                         cpu=cpu,
+                                         mobilenet_model_tar=mobilenet_model_tar)
 
-    def __create_network(self, model_path, network="resnet50", cpu=True):
+    def __create_network(self, model_path, mobilenet_model_tar=None, network="resnet50", cpu=True):
+        """
+        @param model_path:
+        @param network:
+        @param cpu:
+        @return:
+        """
         if network == "mobile0.25":
             self.cfg = cfg_mnet
         elif network == "resnet50":
             self.cfg = cfg_re50
 
         # net and model
-        net = RetinaFace(cfg=self.cfg, phase=None)
+        net = RetinaFace(cfg=self.cfg, phase=None, mobilenet_model_tar=mobilenet_model_tar)
         net = self.__load_model(net, model_path, load_to_cpu=True)
         net.eval()
-        # print('Finished loading model!')
-        # print(net)
         cudnn.benchmark = False
         self.device = torch.device("cpu" if cpu else "cuda")
         return net.to(self.device)
 
     def __load_model(self, model, pretrained_path, load_to_cpu=True):
-        # print('Loading pretrained model from {}'.format(pretrained_path))
+        """
+        @param model:
+        @param pretrained_path:
+        @param load_to_cpu:
+        @return:
+        """
         if load_to_cpu:
             pretrained_dict = torch.load(pretrained_path, map_location=lambda storage, loc: storage)
         else:
             device = torch.cuda.current_device()
             pretrained_dict = torch.load(pretrained_path, map_location=lambda storage, loc: storage.cuda(device))
+
         if "state_dict" in pretrained_dict.keys():
             pretrained_dict = self.remove_prefix(pretrained_dict['state_dict'], 'module.')
         else:
             pretrained_dict = self.remove_prefix(pretrained_dict, 'module.')
+
         if self.check_keys(model, pretrained_dict):
             model.load_state_dict(pretrained_dict, strict=False)
             return model
 
     def check_keys(self, model, pretrained_state_dict):
+        """
+        @param model:
+        @param pretrained_state_dict:
+        @return:
+        """
         ckpt_keys = set(pretrained_state_dict.keys())
         model_keys = set(model.state_dict().keys())
         used_pretrained_keys = model_keys & ckpt_keys
         unused_pretrained_keys = ckpt_keys - model_keys
         missing_keys = model_keys - ckpt_keys
-        # print('Missing keys:{}'.format(len(missing_keys)))
-        # print('Unused checkpoint keys:{}'.format(len(unused_pretrained_keys)))
-        # print('Used keys:{}'.format(len(used_pretrained_keys)))
-        # assert len(used_pretrained_keys) > 0, 'load NONE from pretrained checkpoint'
+
         return len(used_pretrained_keys) > 0
 
     def remove_prefix(self, state_dict, prefix):
+        """
+        @param state_dict:
+        @param prefix:
+        @return:
+        """
         ''' Old style model is stored with all names of parameters sharing common prefix 'module.' '''
         # print('remove prefix \'{}\''.format(prefix))
         f = lambda x: x.split(prefix, 1)[-1] if x.startswith(prefix) else x
         return {f(key): value for key, value in state_dict.items()}
 
     def detect_faces(self, img_raw):
+        """
+        @param img_raw:
+        @return:
+        """
         resize = 1
         img = np.float32(img_raw)
 
@@ -106,13 +134,13 @@ class FaceDetect:
         landms = landms.cpu().numpy()
 
         # ignore low scores
-        inds = np.where(scores > confidence_threshold)[0]
+        inds = np.where(scores > CONFIDENCE_THRESHOLD)[0]
         boxes = boxes[inds]
         landms = landms[inds]
         scores = scores[inds]
 
         # keep top-K before NMS
-        order = scores.argsort()[::-1][:top_k]
+        order = scores.argsort()[::-1][:TOP_K]
         boxes = boxes[order]
         landms = landms[order]
         scores = scores[order]

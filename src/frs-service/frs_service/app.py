@@ -4,17 +4,14 @@ import os
 import warnings
 import cv2.cv2 as cv2
 import numpy
-import numpy as np
-from flask import Flask, request, jsonify, abort
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-
 from dnn_utils import dnn_converter
 from face_handler import FaceHandler
 from vision_utils import log_utils
 from vision_utils.redis_handler import RedisHandler
 
 warnings.filterwarnings("ignore")
-
 app = Flask(__name__, static_url_path="/static")
 CORS(app)
 
@@ -42,6 +39,9 @@ def detect_v1():
 
 @app.route('/embedding/v1', methods=['POST'])
 def extract_embedding_v1():
+    """
+    @return:
+    """
     photo = request.files.get('photo')
     try:
         photo_data = photo.read()

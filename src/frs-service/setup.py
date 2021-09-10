@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(
-    name="frs-service",
+    name="arc-face",
     version="1.0.1",
     author="MD. MEHEDI HASAN RABBI",
     author_email="rabbi.cse.sust.bd@gmail.com",

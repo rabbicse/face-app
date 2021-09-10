@@ -150,42 +150,19 @@ def match_v2():
         emb = face_handler.extract_embedding(frame)
 
         if type(emb) is int and emb == -2:
-            return jsonify({'status': 2, 'score': str(-3)})
+            return Response('Face orientation is not perfect!', status=400)
 
         embeddings_data = json.loads(embeddings)
         embedding_b64 = embeddings_data['embedding']
         embedding = dnn_converter.decode_np_hex(embedding_b64)
-        # print(embedding)
-        # print('done....')
 
         # match
         score = face_handler.match(emb, embedding)
 
-        # print(score)
-
         return jsonify({'status': 0, 'score': str(score)})
     except Exception as x:
         logger.error(f'Error when recognize by image. Details: {x}')
-        # return abort()
-
-
-@app.route('/test/v1', methods=['POST'])
-def test_v1():
-    data = request.form.get('data')
-    try:
-        return jsonify({'status': 0, 'score': str(data)})
-    except Exception as x:
-        logger.error(f'Error when recognize by image. Details: {x}')
-        return jsonify({'msg': 'Not a valid image!'})
-
-
-@app.route('/test/v2', methods=['GET'])
-def test_v2():
-    try:
-        return jsonify({'status': 0, 'score': 0})
-    except Exception as x:
-        logger.error(f'Error when recognize by image. Details: {x}')
-        return jsonify({'msg': 'Not a valid image!'})
+        return Response('Face orientation is not perfect!', status=500)
 
 
 def main():

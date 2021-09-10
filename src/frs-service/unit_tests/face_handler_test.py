@@ -4,19 +4,18 @@ import pickle
 
 import cv2.cv2 as cv2
 import numpy as np
-import zfpy
 
 from dnn_utils import dnn_converter
 from face_handler import FaceHandler
-from vision_utils.decorators import timeit
+from vision_utils.decorators import timeit, TimeitDecorator
 from vision_utils.redis_handler import RedisHandler
 
 logger = logging.getLogger(__name__)
 
-
 face_handler = FaceHandler()
 
-@timeit
+
+@TimeitDecorator()
 def extract_emb():
     # frame = cv2.imread("test_data/480.jpg", cv2.IMREAD_UNCHANGED)
     frame = cv2.imread("test_data/480.jpg", cv2.IMREAD_UNCHANGED)
@@ -27,6 +26,7 @@ def extract_emb():
     hex = dnn_converter.encode_np_hex(emb)
     print(hex)
     print(len(hex))
+
 
 for i in range(10):
     extract_emb()
