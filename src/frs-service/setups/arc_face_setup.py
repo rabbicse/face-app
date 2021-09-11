@@ -1,3 +1,5 @@
+import os
+
 import setuptools
 
 setuptools.setup(
@@ -6,7 +8,8 @@ setuptools.setup(
     author="MD. MEHEDI HASAN RABBI",
     author_email="rabbi.cse.sust.bd@gmail.com",
     description="Face embedding generator and match embeddings. Used arcface algorithm",
-    packages=setuptools.find_packages(exclude=("tests",)),
+    package_dir={'': '..'},
+    packages=setuptools.find_packages(where=os.path.abspath('..'), include=['arc_face', 'arc_face.*']),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: GPL-3.0",

@@ -70,7 +70,7 @@ class LandmarkHead(nn.Module):
 
 
 class RetinaFace(nn.Module):
-    def __init__(self, cfg=None, mobilenet_model_tar="./models/mobilenetV1X0.25_pretrain.tar", phase='train'):
+    def __init__(self, cfg=None, mobilenet_model_tar=None, phase='train'):
         """
         :param cfg:  Network related settings.
         :param phase: train or test.
