@@ -18,8 +18,12 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 - Finally run "run.ps1"
 
 ## Build instructions
+https://packaging.python.org/guides/distributing-packages-using-setuptools/#setup-py
 ```
-python setup.py sdist bdist_wheel
+python dnn_utils_setup.py bdist_wheel --universal
+python vision_utils_setup.py bdist_wheel --universal
+python retina_face_setup.py bdist_wheel --universal
+python arc_faces_setup.py bdist_wheel --universal
 ```
 
 ## Special Notes

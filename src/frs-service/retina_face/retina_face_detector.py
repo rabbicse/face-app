@@ -6,7 +6,7 @@ from dnn_utils.box_utils import decode, decode_landm
 from dnn_utils.py_cpu_nms import py_cpu_nms
 from retina_face.data import cfg_mnet, cfg_re50
 from retina_face.prior_box import PriorBox
-from retina_face.retinaface import RetinaFace
+from retina_face.retina_face import RetinaFace
 
 CONFIDENCE_THRESHOLD = 0.02
 TOP_K = 5000

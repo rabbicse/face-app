@@ -1,6 +1,9 @@
 import os
-
+import shutil
 import setuptools
+
+if os.path.exists('build'):
+    shutil.rmtree('build')
 
 setuptools.setup(
     name="arc-face",
