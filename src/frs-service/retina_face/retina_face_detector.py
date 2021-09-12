@@ -133,6 +133,8 @@ class RetinaFaceDetector:
         landms = landms * scale1 / resize
         landms = landms.cpu().numpy()
 
+        print(scores)
+
         # ignore low scores
         inds = np.where(scores > CONFIDENCE_THRESHOLD)[0]
         boxes = boxes[inds]

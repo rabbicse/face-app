@@ -8,24 +8,37 @@ from arc_face.recognition import Embedding
 from dnn_utils.pose_estimation import PoseEstimation
 from retina_face.retina_face_detector import RetinaFaceDetector
 from vision_utils import log_utils
-from vision_utils.decorators import timeit
+from vision_utils.decorators import timeit, TimeitDecorator
+
+DETECTOR_MODEL_PATH = 'models/mobilenet0.25_Final.pth'
+DETECTOR_MODEL_TAR_PATH = 'models/mobilenetV1X0.25_pretrain.tar'
+RECOGNIZER_MODEL_PATH = 'models/backbone-r100m.pth'
 
 
 class FaceHandler:
-    def __init__(self):
-        """
-        """
+    def __init__(self, dnn_config, detector_network='mobile0.25', debug=False):
         self.logger = log_utils.LogUtils().get_logger(self.__class__.__name__)
+        self.__debug = debug
         self.thresh = 0.2
         self.scales = [240, 720]
-        retina_face_model_path = os.path.abspath('models/mobilenet0.25_Final.pth')
+
+        # initialize detector
+        retina_face_model_path = dnn_config['detector_model_path'] \
+            if 'detector_model_path' in dnn_config else os.path.abspath(DETECTOR_MODEL_PATH)
+        retina_face_model_tar_path = dnn_config['detector_model_tar_path'] \
+            if 'detector_model_tar_path' in dnn_config else os.path.abspath(DETECTOR_MODEL_TAR_PATH)
         self.face_detector = RetinaFaceDetector(model_path=retina_face_model_path,
-                                                network='mobile0.25')
-        arc_face_model_path = os.path.abspath('models/backbone-r100m.pth')
-        self.recognition = Embedding(arc_face_model_path, model_architecture='r100')
+                                                mobilenet_model_tar=retina_face_model_tar_path,
+                                                network=detector_network)
+
+        # initialize recognizer
+        arc_face_model_path = dnn_config['recognizer_model_path'] \
+            if 'recognizer_model_path' in dnn_config else os.path.abspath(DETECTOR_MODEL_PATH)
+
+        self.face_recognizer = Embedding(arc_face_model_path, model_architecture='r100')
         self.pose_estimator = PoseEstimation()
 
-    @timeit
+    @TimeitDecorator()
     def detect_faces(self, img):
         """
         :param img:
@@ -59,7 +72,7 @@ class FaceHandler:
         except Exception as x:
             self.logger.error(f'Error when detect faces. Details: {x}')
 
-    @timeit
+    @TimeitDecorator()
     def pre_process_img(self, img):
         """
         :param img:
@@ -90,7 +103,7 @@ class FaceHandler:
         except Exception as x:
             self.logger.error(f'Error when pre-process0image. Details: {x}')
 
-    @timeit
+    @TimeitDecorator()
     def pre_process_face(self, img, box, landmark5):
         """
         :param img:
@@ -124,7 +137,7 @@ class FaceHandler:
         except Exception as x:
             self.logger.error(f'Error when pre-process-face. Details: {x}')
 
-    @timeit
+    @TimeitDecorator()
     def extract_embedding(self, img):
         """
         :param img:
@@ -149,10 +162,11 @@ class FaceHandler:
         crop_img = self.pre_process_face(img, box, landmark5)
 
         # extract embedding
-        emb = self.recognition.get_embedding(crop_img)
+        emb = self.face_recognizer.get_embedding(crop_img)
 
         return emb
 
+    @TimeitDecorator()
     def match(self, embedding1, embedding2):
         """
         :param embedding1:
