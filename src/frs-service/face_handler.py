@@ -28,7 +28,7 @@ class FaceHandler:
         retina_face_model_tar_path = dnn_config['detector_model_tar_path'] \
             if 'detector_model_tar_path' in dnn_config else os.path.abspath(DETECTOR_MODEL_TAR_PATH)
         self.face_detector = RetinaFaceDetector(model_path=retina_face_model_path,
-                                                mobilenet_model_tar=retina_face_model_tar_path,
+                                                model_tar=retina_face_model_tar_path,
                                                 network=detector_network)
 
         # initialize recognizer
