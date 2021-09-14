@@ -9,20 +9,12 @@ from retina_face.net import SSH as SSH
 
 
 class ClassHead(nn.Module):
-    def __init__(self, in_channels=512, num_anchors=3):
-        """
-        @param in_channels:
-        @param num_anchors:
-        """
+    def __init__(self, inchannels=512, num_anchors=3):
         super(ClassHead, self).__init__()
         self.num_anchors = num_anchors
-        self.conv1x1 = nn.Conv2d(in_channels, self.num_anchors * 2, kernel_size=(1, 1), stride=(1,), padding=0)
+        self.conv1x1 = nn.Conv2d(inchannels, self.num_anchors * 2, kernel_size=(1, 1), stride=1, padding=0)
 
     def forward(self, x):
-        """
-        @param x:
-        @return:
-        """
         out = self.conv1x1(x)
         out = out.permute(0, 2, 3, 1).contiguous()
 
@@ -30,19 +22,11 @@ class ClassHead(nn.Module):
 
 
 class BboxHead(nn.Module):
-    def __init__(self, in_channels=512, num_anchors=3):
-        """
-        @param in_channels: 
-        @param num_anchors: 
-        """
+    def __init__(self, inchannels=512, num_anchors=3):
         super(BboxHead, self).__init__()
-        self.conv1x1 = nn.Conv2d(in_channels, num_anchors * 4, kernel_size=(1, 1), stride=(1,), padding=0)
+        self.conv1x1 = nn.Conv2d(inchannels, num_anchors * 4, kernel_size=(1, 1), stride=1, padding=0)
 
     def forward(self, x):
-        """
-        @param x:
-        @return:
-        """
         out = self.conv1x1(x)
         out = out.permute(0, 2, 3, 1).contiguous()
 
@@ -50,19 +34,11 @@ class BboxHead(nn.Module):
 
 
 class LandmarkHead(nn.Module):
-    def __init__(self, in_channels=512, num_anchors=3):
-        """
-        @param in_channels:
-        @param num_anchors:
-        """
+    def __init__(self, inchannels=512, num_anchors=3):
         super(LandmarkHead, self).__init__()
-        self.conv1x1 = nn.Conv2d(in_channels, num_anchors * 10, kernel_size=(1, 1), stride=(1,), padding=0)
+        self.conv1x1 = nn.Conv2d(inchannels, num_anchors * 10, kernel_size=(1, 1), stride=1, padding=0)
 
     def forward(self, x):
-        """
-        @param x:
-        @return:
-        """
         out = self.conv1x1(x)
         out = out.permute(0, 2, 3, 1).contiguous()
 
@@ -70,59 +46,46 @@ class LandmarkHead(nn.Module):
 
 
 class RetinaFace(nn.Module):
-    def __init__(self, cfg=None, mobilenet_model_tar=None, phase='train'):
+    def __init__(self, cfg=None, phase='train', model_tar=None):
         """
         :param cfg:  Network related settings.
         :param phase: train or test.
         """
         super(RetinaFace, self).__init__()
         self.phase = phase
-        self.cfg = cfg
-        self.mobilenet_model_tar = mobilenet_model_tar
-
-        self.body = None
-        self.fpn = None
-        self.ssh1 = None
-        self.ssh2 = None
-        self.ssh3 = None
-        self.class_head = None
-        self.bbox_head = None
-        self.landmark_head = None
-
-        self.initialize_network()
-
-    def initialize_network(self):
         backbone = None
-        if self.cfg['name'] == 'mobilenet0.25':
+        if cfg['name'] == 'mobilenet0.25':
             backbone = MobileNetV1()
-            checkpoint = torch.load(self.mobilenet_model_tar, map_location=torch.device('cpu'))
-            from collections import OrderedDict
-            new_state_dict = OrderedDict()
-            for k, v in checkpoint['state_dict'].items():
-                name = k[7:]  # remove module.
-                new_state_dict[name] = v
-            # load params
-            backbone.load_state_dict(new_state_dict)
-        elif self.cfg['name'] == 'Resnet50':
+            if cfg['pretrain']:
+                checkpoint = torch.load(model_tar, map_location=torch.device('cpu'))
+                # checkpoint = torch.load("../models/mobilenetV1X0.25_pretrain.tar", map_location=torch.device('cpu'))
+                from collections import OrderedDict
+                new_state_dict = OrderedDict()
+                for k, v in checkpoint['state_dict'].items():
+                    name = k[7:]  # remove module.
+                    new_state_dict[name] = v
+                # load params
+                backbone.load_state_dict(new_state_dict)
+        elif cfg['name'] == 'Resnet50':
             import torchvision.models as models
-            backbone = models.resnet50(pretrained=self.cfg['pretrain'])
+            backbone = models.resnet50(pretrained=cfg['pretrain'])
 
-        self.body = _utils.IntermediateLayerGetter(backbone, self.cfg['return_layers'])
-        in_channels_stage2 = self.cfg['in_channel']
+        self.body = _utils.IntermediateLayerGetter(backbone, cfg['return_layers'])
+        in_channels_stage2 = cfg['in_channel']
         in_channels_list = [
             in_channels_stage2 * 2,
             in_channels_stage2 * 4,
             in_channels_stage2 * 8,
         ]
-        out_channels = self.cfg['out_channel']
+        out_channels = cfg['out_channel']
         self.fpn = FPN(in_channels_list, out_channels)
         self.ssh1 = SSH(out_channels, out_channels)
         self.ssh2 = SSH(out_channels, out_channels)
         self.ssh3 = SSH(out_channels, out_channels)
 
-        self.class_head = self._make_class_head(fpn_num=3, in_channels=self.cfg['out_channel'])
-        self.bbox_head = self._make_bbox_head(fpn_num=3, in_channels=self.cfg['out_channel'])
-        self.landmark_head = self._make_landmark_head(fpn_num=3, in_channels=self.cfg['out_channel'])
+        self.ClassHead = self._make_class_head(fpn_num=3, in_channels=cfg['out_channel'])
+        self.bbox_head = self._make_bbox_head(fpn_num=3, in_channels=cfg['out_channel'])
+        self.LandmarkHead = self._make_landmark_head(fpn_num=3, in_channels=cfg['out_channel'])
 
     def _make_class_head(self, fpn_num=3, in_channels=64, anchor_num=2):
         """
@@ -143,10 +106,10 @@ class RetinaFace(nn.Module):
         @param anchor_num:
         @return:
         """
-        bboxhead = nn.ModuleList()
+        bbox_head = nn.ModuleList()
         for i in range(fpn_num):
-            bboxhead.append(BboxHead(in_channels, anchor_num))
-        return bboxhead
+            bbox_head.append(BboxHead(in_channels, anchor_num))
+        return bbox_head
 
     def _make_landmark_head(self, fpn_num=3, in_channels=64, anchor_num=2):
         """
@@ -155,16 +118,12 @@ class RetinaFace(nn.Module):
         @param anchor_num:
         @return:
         """
-        landmarkhead = nn.ModuleList()
+        landmark_head = nn.ModuleList()
         for i in range(fpn_num):
-            landmarkhead.append(LandmarkHead(in_channels, anchor_num))
-        return landmarkhead
+            landmark_head.append(LandmarkHead(in_channels, anchor_num))
+        return landmark_head
 
     def forward(self, inputs):
-        """
-        @param inputs:
-        @return:
-        """
         out = self.body(inputs)
 
         # FPN
@@ -177,8 +136,8 @@ class RetinaFace(nn.Module):
         features = [feature1, feature2, feature3]
 
         bbox_regressions = torch.cat([self.bbox_head[i](feature) for i, feature in enumerate(features)], dim=1)
-        classifications = torch.cat([self.class_head[i](feature) for i, feature in enumerate(features)], dim=1)
-        ldm_regressions = torch.cat([self.landmark_head[i](feature) for i, feature in enumerate(features)], dim=1)
+        classifications = torch.cat([self.ClassHead[i](feature) for i, feature in enumerate(features)], dim=1)
+        ldm_regressions = torch.cat([self.LandmarkHead[i](feature) for i, feature in enumerate(features)], dim=1)
 
         if self.phase == 'train':
             output = (bbox_regressions, classifications, ldm_regressions)

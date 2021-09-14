@@ -32,16 +32,6 @@ class MultiBoxLoss(nn.Module):
 
     def __init__(self, num_classes, overlap_thresh, prior_for_matching, bkg_label, neg_mining, neg_pos, neg_overlap,
                  encode_target):
-        """
-        @param num_classes:
-        @param overlap_thresh:
-        @param prior_for_matching:
-        @param bkg_label:
-        @param neg_mining:
-        @param neg_pos:
-        @param neg_overlap:
-        @param encode_target:
-        """
         super(MultiBoxLoss, self).__init__()
         self.num_classes = num_classes
         self.threshold = overlap_thresh
@@ -54,8 +44,7 @@ class MultiBoxLoss(nn.Module):
         self.variance = [0.1, 0.2]
 
     def forward(self, predictions, priors, targets):
-        """
-        Multibox Loss
+        """Multibox Loss
         Args:
             predictions (tuple): A tuple containing loc preds, conf preds,
             and prior boxes from SSD net.
@@ -65,10 +54,6 @@ class MultiBoxLoss(nn.Module):
 
             ground_truth (tensor): Ground truth boxes and labels for a batch,
                 shape: [batch_size,num_objs,5] (last idx is the label).
-        @param predictions:
-        @param priors:
-        @param targets:
-        @return:
         """
 
         loc_data, conf_data, landm_data = predictions

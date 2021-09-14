@@ -1,7 +1,5 @@
 import numpy as np
 import torch
-import torch.backends.cudnn as cudnn
-
 from dnn_utils.box_utils import decode, decode_landm
 from dnn_utils.py_cpu_nms import py_cpu_nms
 from retina_face.data import cfg_mnet, cfg_re50
@@ -10,14 +8,13 @@ from retina_face.retina_face import RetinaFace
 
 CONFIDENCE_THRESHOLD = 0.02
 TOP_K = 5000
-nms_threshold = 0.4
-keep_top_k = 750
-vis_thres = 0.6
+NMS_THRESHOLD = 0.4
+KEEP_TOP_K = 750
+VIS_THRESHOLD = 0.6
 
 
 class RetinaFaceDetector:
-    def __init__(self, model_path, network="resnet50", cpu=True,
-                 mobilenet_model_tar="./models/mobilenetV1X0.25_pretrain.tar"):
+    def __init__(self, model_path, model_tar=None, network="resnet50", cpu=True):
         """
         @param model_path:
         @param network:
@@ -28,11 +25,11 @@ class RetinaFaceDetector:
         self.device = None
 
         self.net = self.__create_network(model_path=model_path,
+                                         model_tar=model_tar,
                                          network=network,
-                                         cpu=cpu,
-                                         mobilenet_model_tar=mobilenet_model_tar)
+                                         cpu=cpu)
 
-    def __create_network(self, model_path, mobilenet_model_tar=None, network="resnet50", cpu=True):
+    def __create_network(self, model_path, model_tar=None, network="resnet50", cpu=True):
         """
         @param model_path:
         @param network:
@@ -45,10 +42,9 @@ class RetinaFaceDetector:
             self.cfg = cfg_re50
 
         # net and model
-        net = RetinaFace(cfg=self.cfg, phase=None, mobilenet_model_tar=mobilenet_model_tar)
+        net = RetinaFace(cfg=self.cfg, phase=None, model_tar=model_tar)
         net = self.__load_model(net, model_path, load_to_cpu=True)
-        net.eval()
-        cudnn.benchmark = False
+
         self.device = torch.device("cpu" if cpu else "cuda")
         return net.to(self.device)
 
@@ -64,12 +60,10 @@ class RetinaFaceDetector:
         else:
             device = torch.cuda.current_device()
             pretrained_dict = torch.load(pretrained_path, map_location=lambda storage, loc: storage.cuda(device))
-
         if "state_dict" in pretrained_dict.keys():
             pretrained_dict = self.remove_prefix(pretrained_dict['state_dict'], 'module.')
         else:
             pretrained_dict = self.remove_prefix(pretrained_dict, 'module.')
-
         if self.check_keys(model, pretrained_dict):
             model.load_state_dict(pretrained_dict, strict=False)
             return model
@@ -83,19 +77,16 @@ class RetinaFaceDetector:
         ckpt_keys = set(pretrained_state_dict.keys())
         model_keys = set(model.state_dict().keys())
         used_pretrained_keys = model_keys & ckpt_keys
-        unused_pretrained_keys = ckpt_keys - model_keys
-        missing_keys = model_keys - ckpt_keys
 
         return len(used_pretrained_keys) > 0
 
     def remove_prefix(self, state_dict, prefix):
         """
+        Old style model is stored with all names of parameters sharing common prefix 'module.
         @param state_dict:
         @param prefix:
         @return:
         """
-        ''' Old style model is stored with all names of parameters sharing common prefix 'module.' '''
-        # print('remove prefix \'{}\''.format(prefix))
         f = lambda x: x.split(prefix, 1)[-1] if x.startswith(prefix) else x
         return {f(key): value for key, value in state_dict.items()}
 
@@ -133,8 +124,6 @@ class RetinaFaceDetector:
         landms = landms * scale1 / resize
         landms = landms.cpu().numpy()
 
-        print(scores)
-
         # ignore low scores
         inds = np.where(scores > CONFIDENCE_THRESHOLD)[0]
         boxes = boxes[inds]
@@ -149,14 +138,14 @@ class RetinaFaceDetector:
 
         # do NMS
         dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=False)
-        keep = py_cpu_nms(dets, nms_threshold)
+        keep = py_cpu_nms(dets, NMS_THRESHOLD)
         # keep = nms(dets, args.nms_threshold,force_cpu=args.cpu)
         dets = dets[keep, :]
         landms = landms[keep]
 
         # keep top-K faster NMS
-        dets = dets[:keep_top_k, :]
-        landms = landms[:keep_top_k, :]
+        dets = dets[:KEEP_TOP_K, :]
+        landms = landms[:KEEP_TOP_K, :]
 
         dets = np.concatenate((dets, landms), axis=1)
 
@@ -165,7 +154,7 @@ class RetinaFaceDetector:
 
         # show image
         for b in dets:
-            if b[4] < vis_thres:
+            if b[4] < VIS_THRESHOLD:
                 continue
 
             detections.append((b[0], b[1], b[2], b[3]))
