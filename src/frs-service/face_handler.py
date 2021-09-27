@@ -136,7 +136,6 @@ class FaceHandler:
 
             crop_img = preprocessor.preprocess(ret, image_size=[112, 112], landmark=ln)
             crop_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB)
-            # crop_img = cv2.resize(crop_img, (112, 112))
 
             # cv2.imshow('Images', crop_img)
             # # Hit 'q' on the keyboard to quit!

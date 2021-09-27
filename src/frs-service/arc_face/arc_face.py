@@ -40,7 +40,7 @@ class ArcFace(object):
         imgs = torch.Tensor(batch_data).cpu()
         imgs.div_(255).sub_(0.5).div_(0.5)
         feat = self.model(imgs)
-        return feat.numpy()
+        return feat.cpu().numpy()
 
     def get_embedding(self, img, rgb_convert=False):
         """
