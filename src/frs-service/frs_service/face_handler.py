@@ -3,8 +3,8 @@ import os
 import numpy as np
 import cv2.cv2 as cv2
 
-from arc_face import preprocessor
-from arc_face.recognition import Embedding
+from dnn_utils import preprocessor
+from arc_face.arc_face import ArcFace
 from dnn_utils.pose_estimation import PoseEstimation
 from retina_face.retina_face_detector import RetinaFaceDetector
 from vision_utils import log_utils
@@ -22,7 +22,7 @@ class FaceHandler:
         self.face_detector = RetinaFaceDetector(model_path=self.retina_face_model,
                                                 network='mobile0.25')
         self.arc_face_model = os.path.abspath('models/backbone-r100.pth')
-        self.recognition = Embedding('models/backbone-r100.pth')
+        self.recognition = ArcFace('models/backbone-r100.pth')
         self.pose_estimator = PoseEstimation()
 
     @timeit

@@ -3,12 +3,12 @@ import logging
 from cv2 import cv2
 
 # from ..arcface import recognition
-from arc_face import recognition
+from arc_face import arc_face
 from vision_utils.decorators import timeit
 
 logger = logging.getLogger(__name__)
 
-rec = recognition.Embedding('../models/backbone-r18m.pth', model_architecture="r18")
+rec = arc_face.ArcFace('../models/backbone-r18m.pth', model_architecture="r18")
 
 
 @timeit

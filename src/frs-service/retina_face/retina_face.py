@@ -84,7 +84,7 @@ class RetinaFace(nn.Module):
         self.ssh3 = SSH(out_channels, out_channels)
 
         self.ClassHead = self._make_class_head(fpn_num=3, in_channels=cfg['out_channel'])
-        self.bbox_head = self._make_bbox_head(fpn_num=3, in_channels=cfg['out_channel'])
+        self.BboxHead = self._make_bbox_head(fpn_num=3, in_channels=cfg['out_channel'])
         self.LandmarkHead = self._make_landmark_head(fpn_num=3, in_channels=cfg['out_channel'])
 
     def _make_class_head(self, fpn_num=3, in_channels=64, anchor_num=2):
@@ -135,7 +135,7 @@ class RetinaFace(nn.Module):
         feature3 = self.ssh3(fpn[2])
         features = [feature1, feature2, feature3]
 
-        bbox_regressions = torch.cat([self.bbox_head[i](feature) for i, feature in enumerate(features)], dim=1)
+        bbox_regressions = torch.cat([self.BboxHead[i](feature) for i, feature in enumerate(features)], dim=1)
         classifications = torch.cat([self.ClassHead[i](feature) for i, feature in enumerate(features)], dim=1)
         ldm_regressions = torch.cat([self.LandmarkHead[i](feature) for i, feature in enumerate(features)], dim=1)
 

@@ -3,16 +3,17 @@ import os
 import numpy as np
 import cv2.cv2 as cv2
 
-from arc_face import preprocessor
-from arc_face.recognition import Embedding
+from dnn_utils import preprocessor
+from arc_face.arc_face import ArcFace
 from dnn_utils.pose_estimation import PoseEstimation
 from retina_face.retina_face_detector import RetinaFaceDetector
 from vision_utils import log_utils
-from vision_utils.decorators import timeit, TimeitDecorator
+from vision_utils.decorators import TimeitDecorator
 
 DETECTOR_MODEL_PATH = 'models/mobilenet0.25_Final.pth'
 DETECTOR_MODEL_TAR_PATH = 'models/mobilenetV1X0.25_pretrain.tar'
 RECOGNIZER_MODEL_PATH = 'models/backbone-r100m.pth'
+RECOGNIZER_MODEL_ARCHITECTURE = 'r100'
 
 
 class FaceHandler:
@@ -22,20 +23,26 @@ class FaceHandler:
         self.thresh = 0.2
         self.scales = [240, 720]
 
-        # initialize detector
+        # set dnn config
         retina_face_model_path = dnn_config['detector_model_path'] \
             if 'detector_model_path' in dnn_config else os.path.abspath(DETECTOR_MODEL_PATH)
         retina_face_model_tar_path = dnn_config['detector_model_tar_path'] \
             if 'detector_model_tar_path' in dnn_config else os.path.abspath(DETECTOR_MODEL_TAR_PATH)
+
+        # Initialize face detector
         self.face_detector = RetinaFaceDetector(model_path=retina_face_model_path,
                                                 model_tar=retina_face_model_tar_path,
                                                 network=detector_network)
 
-        # initialize recognizer
+        # Initialize face recognizer
         arc_face_model_path = dnn_config['recognizer_model_path'] \
             if 'recognizer_model_path' in dnn_config else os.path.abspath(DETECTOR_MODEL_PATH)
+        arc_face_model_architecture = dnn_config['recognizer_model_architecture'] \
+            if 'recognizer_model_architecture' in dnn_config else RECOGNIZER_MODEL_ARCHITECTURE
 
-        self.face_recognizer = Embedding(arc_face_model_path, model_architecture='r100')
+        self.face_recognizer = ArcFace(arc_face_model_path, model_architecture=arc_face_model_architecture)
+
+        # Initialize pose estimator
         self.pose_estimator = PoseEstimation()
 
     @TimeitDecorator()
@@ -58,7 +65,9 @@ class FaceHandler:
             if np.round(im_scale * im_size_max) > max_size:
                 im_scale = float(max_size) / float(im_size_max)
 
-            # print('im_scale', im_scale)
+            self.logger.info(f'Original image scale: {im_scale}')
+            img = cv2.resize(img, None, None, fx=im_scale, fy=im_scale, interpolation=cv2.INTER_LINEAR)
+
             faces, landmarks = self.face_detector.detect_faces(img)
             face_list = []
             for i in range(len(faces)):
@@ -162,9 +171,7 @@ class FaceHandler:
         crop_img = self.pre_process_face(img, box, landmark5)
 
         # extract embedding
-        emb = self.face_recognizer.get_embedding(crop_img)
-
-        return emb
+        return self.face_recognizer.get_embedding(crop_img)
 
     @TimeitDecorator()
     def match(self, embedding1, embedding2):
@@ -173,4 +180,4 @@ class FaceHandler:
         :param embedding2:
         :return: score
         """
-        return self.recognition.compute_match(embedding1, embedding2)
+        return self.face_recognizer.compute_match(embedding1, embedding2)

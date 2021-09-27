@@ -44,7 +44,6 @@ class PartialFC(Module):
             Path for save checkpoint, default is './'.
         """
         super(PartialFC, self).__init__()
-        #
         self.num_classes: int = num_classes
         self.rank: int = rank
         self.local_rank: int = local_rank
@@ -91,7 +90,8 @@ class PartialFC(Module):
             self.sub_weight = Parameter(torch.empty((0, 0)).cuda(local_rank))
 
     def save_params(self):
-        """ Save softmax weight for each rank on prefix
+        """
+        Save softmax weight for each rank on prefix
         """
         torch.save(self.weight.data, self.weight_name)
         torch.save(self.weight_mom, self.weight_mom_name)
@@ -123,7 +123,8 @@ class PartialFC(Module):
             self.sub_weight_mom = self.weight_mom[index]
 
     def forward(self, total_features, norm_weight):
-        """ Partial fc forward, `logits = X * sample(W)`
+        """
+        Partial fc forward, `logits = X * sample(W)`
         """
         torch.cuda.current_stream().wait_stream(self.stream)
         logits = linear(total_features, norm_weight)
@@ -131,7 +132,8 @@ class PartialFC(Module):
 
     @torch.no_grad()
     def update(self):
-        """ Set updated weight and weight_mom to memory bank.
+        """
+        Set updated weight and weight_mom to memory bank.
         """
         self.weight_mom[self.index] = self.sub_weight_mom
         self.weight[self.index] = self.sub_weight
