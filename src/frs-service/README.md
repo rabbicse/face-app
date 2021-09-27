@@ -30,3 +30,9 @@ python arc_faces_setup.py bdist_wheel --universal
 ```
 pip install --no-index --find-links ..\wheels\ -r ..\requirements.txt
 ```
+
+## For macOS
+```
+python3 -m pip install --upgrade certifi
+open /Applications/Python\ 3.9/Install\ Certificates.command
+```

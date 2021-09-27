@@ -9,6 +9,7 @@ from vision_utils.decorators import TimeitDecorator
 
 logger = logging.getLogger(__name__)
 
+DETECTOR_MODEL_R50_PATH = os.path.abspath('../models/Resnet50_Final.pth')
 DETECTOR_MODEL_PATH = os.path.abspath('../models/mobilenet0.25_Final.pth')
 DETECTOR_MODEL_TAR_PATH = os.path.abspath('../models/mobilenetV1X0.25_pretrain.tar')
 RECOGNIZER_MODEL_PATH = os.path.abspath('../models/backbone-r100m.pth')
@@ -18,7 +19,7 @@ dnn_config = {
     'detector_model_tar_path': DETECTOR_MODEL_TAR_PATH,
     'recognizer_model_path': RECOGNIZER_MODEL_PATH,
     'recognizer_model_architecture': 'r100'}
-face_handler = FaceHandler(detector_network='mobile0.25',
+face_handler = FaceHandler(detector_network='mobile0.25',#'resnet50',#'mobile0.25',
                            dnn_config=dnn_config,
                            debug=True)
 

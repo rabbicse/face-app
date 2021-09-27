@@ -24,11 +24,12 @@ DETECTOR_MODEL_PATH = os.path.abspath('models/mobilenet0.25_Final.pth')
 DETECTOR_MODEL_TAR_PATH = os.path.abspath('models/mobilenetV1X0.25_pretrain.tar')
 RECOGNIZER_MODEL_PATH = os.path.abspath('models/backbone-r100m.pth')
 
-
 dnn_config = {
     'detector_model_path': DETECTOR_MODEL_PATH,
     'detector_model_tar_path': DETECTOR_MODEL_TAR_PATH,
-    'recognizer_model_path': RECOGNIZER_MODEL_PATH}
+    'recognizer_model_path': RECOGNIZER_MODEL_PATH,
+    'recognizer_model_architecture': 'r100'
+}
 face_handler = FaceHandler(detector_network='mobile0.25',
                            dnn_config=dnn_config,
                            debug=False)
@@ -86,9 +87,7 @@ def extract_embedding_v2():
         emb = face_handler.extract_embedding(frame)
         if type(emb) is int and emb == -2:
             return Response('Face orientation is not perfect!', status=400)
-            # return jsonify({'status': 2, 'embedding': str(-3)})
 
-        # emb_bytes = emb.tobytes()
         embedding = dnn_converter.encode_np_hex(emb)
 
         return jsonify({'status': 0, 'embedding': embedding})

@@ -4,7 +4,12 @@ import torch
 
 
 class PriorBox(object):
-    def __init__(self, cfg, image_size=None, phase='train'):
+    def __init__(self, cfg, image_size=None):
+        """
+        @param cfg:
+        @param image_size:
+        @param phase:
+        """
         super(PriorBox, self).__init__()
         self.min_sizes = cfg['min_sizes']
         self.steps = cfg['steps']
@@ -14,6 +19,9 @@ class PriorBox(object):
         self.name = "s"
 
     def forward(self):
+        """
+        @return:
+        """
         anchors = []
         for k, f in enumerate(self.feature_maps):
             min_sizes = self.min_sizes[k]
