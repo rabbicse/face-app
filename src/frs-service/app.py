@@ -34,8 +34,6 @@ face_handler = FaceHandler(detector_network='mobile0.25',
                            dnn_config=dnn_config,
                            debug=False)
 
-# face_handler = FaceHandler()
-
 redis_handler = RedisHandler()
 
 
@@ -111,7 +109,6 @@ def enroll_v1():
 
         person_info = json.loads(data)
         name = person_info['name']
-        print(name)
 
         # todo: insert database and get uniqe id
         redis_handler.insert_data(name, emb)
@@ -121,7 +118,7 @@ def enroll_v1():
         return jsonify({'msg': 'Not a valid image!'})
 
 
-@app.route('/match/v1', methods=['POST'])
+@app.route('/match/v3', methods=['POST'])
 def match_v1():
     photo = request.files.get('image')
     data = request.form.get('data')
@@ -139,10 +136,10 @@ def match_v1():
 
         # todo: insert database and get uniqe id
         dec_emb = redis_handler.search_data(name)
-        # print(dec_emb)
 
         # todo: match
         score = face_handler.match(emb, dec_emb)
+        print(f'Score: {score}')
 
         return jsonify({'status': 0, 'score': str(score)})
     except Exception as x:
@@ -150,26 +147,61 @@ def match_v1():
         return jsonify({'msg': 'Not a valid image!'})
 
 
-@app.route('/match/v2', methods=['POST'])
+# @app.route('/match/v2', methods=['POST'])
+# @TimeitDecorator()
+# def match_v2():
+#     photo = request.files.get('photo')
+#     embeddings = request.form.get('embeddings')
+#     try:
+#         photo_data = photo.read()
+#         frame = numpy.frombuffer(photo_data, dtype=numpy.uint8)
+#         frame = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED)
+#         emb = face_handler.extract_embedding(frame)
+#
+#         if type(emb) is int and emb == -2:
+#             return Response('Face orientation is not perfect!', status=400)
+#
+#         embeddings_data = json.loads(embeddings)
+#         embedding_b64 = embeddings_data['embedding']
+#         embedding = dnn_converter.decode_np_hex(embedding_b64)
+#
+#         # match
+#         score = face_handler.match(emb, embedding)
+#
+#         return jsonify({'status': 0, 'score': str(score)})
+#     except Exception as x:
+#         logger.error(f'Error when recognize by image. Details: {x}')
+#         return Response('Face orientation is not perfect!', status=500)
+
+@app.route('/match/v1', methods=['POST'])
 @TimeitDecorator()
-def match_v2():
-    photo = request.files.get('photo')
-    embeddings = request.form.get('embeddings')
+def match_v3():
+    photo = request.files.get('image')
+    data = request.form.get('data')
     try:
         photo_data = photo.read()
         frame = numpy.frombuffer(photo_data, dtype=numpy.uint8)
         frame = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED)
-        emb = face_handler.extract_embedding(frame)
+        result = face_handler.extract_embeddings(frame)
+        print(result)
 
-        if type(emb) is int and emb == -2:
-            return Response('Face orientation is not perfect!', status=400)
+        if not result:
+            return Response('FRS engine error!', status=500)
 
-        embeddings_data = json.loads(embeddings)
-        embedding_b64 = embeddings_data['embedding']
-        embedding = dnn_converter.decode_np_hex(embedding_b64)
+        if result['status'] == 1:
+            return Response('No face detected!', status=400)
+        elif result['status'] == 2:
+            return Response('Face orientation issue!', status=400)
 
-        # match
-        score = face_handler.match(emb, embedding)
+        person_info = json.loads(data)
+        name = person_info['name']
+
+        # todo: insert database and get uniqe id
+        dec_emb = redis_handler.search_data(name)
+
+        # todo: match
+        score = face_handler.match(result['results'][0], dec_emb)
+        print(f'Score: {score}')
 
         return jsonify({'status': 0, 'score': str(score)})
     except Exception as x:

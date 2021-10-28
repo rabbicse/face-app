@@ -173,6 +173,38 @@ class FaceHandler:
         return self.face_recognizer.get_embedding(crop_img)
 
     @TimeitDecorator()
+    def extract_embeddings(self, img):
+        """
+        :param img:
+        :return:
+        """
+        # detect faces
+        img, faces, landmarks = self.pre_process_img(img)
+
+        self.logger.info(f'Total faces detected: {len(faces)}')
+        if len(faces) <= 0:
+            return {'status': 1}
+
+        results = []
+        # extract rect and landmark=5
+        for i in range(len(faces)):
+            box = faces[i]
+            landmark5 = landmarks[i]
+
+            # check face pose
+            if not self.pose_estimator.estimate(img, box, landmark5):
+                continue
+
+            # preprocess face before get embeddings
+            crop_img = self.pre_process_face(img, box, landmark5)
+
+            # extract embedding
+            result = self.face_recognizer.get_embedding(crop_img)
+            results.append(result)
+
+        return {'status': 0, 'results': results}
+
+    @TimeitDecorator()
     def match(self, embedding1, embedding2):
         """
         :param embedding1:

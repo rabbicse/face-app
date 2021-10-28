@@ -19,7 +19,7 @@ dnn_config = {
     'detector_model_tar_path': DETECTOR_MODEL_TAR_PATH,
     'recognizer_model_path': RECOGNIZER_MODEL_PATH,
     'recognizer_model_architecture': 'r100'}
-face_handler = FaceHandler(detector_network='mobile0.25',#'resnet50',#'mobile0.25',
+face_handler = FaceHandler(detector_network='mobile0.25',  # 'resnet50',#'mobile0.25',
                            dnn_config=dnn_config,
                            debug=True)
 
@@ -27,10 +27,11 @@ face_handler = FaceHandler(detector_network='mobile0.25',#'resnet50',#'mobile0.2
 @TimeitDecorator()
 def extract_emb():
     # frame = cv2.imread("test_data/480.jpg", cv2.IMREAD_UNCHANGED)
-    frame = cv2.imread("../test_data/messi.jpg", cv2.IMREAD_UNCHANGED)
+    frame = cv2.imread("../test_data/messi2.jpg", cv2.IMREAD_UNCHANGED)
+    print(frame.shape)
     # frame = cv2.imread("test_data/screen.jpg", cv2.IMREAD_UNCHANGED)
-
-    emb = face_handler.extract_embedding(frame)
+    frm = frame[..., :3]
+    emb = face_handler.extract_embedding(frm)
     print(emb)
     # # b = emb.tobytes()
     # hex = dnn_converter.encode_np_hex(emb)

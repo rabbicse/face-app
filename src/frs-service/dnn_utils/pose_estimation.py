@@ -7,6 +7,10 @@ https://github.com/jerryhouuu/Face-Yaw-Roll-Pitch-from-Pose-Estimation-using-Ope
 """
 
 def to_numpy(landmarks):
+    """
+    @param landmarks:
+    @return:
+    """
     coords = []
     for l in landmarks:
         coords += [[l[0], l[1]]]
@@ -77,6 +81,13 @@ class PoseEstimation:
 
     @staticmethod
     def draw_arrow(img, p, q, color):
+        """
+        @param img:
+        @param p:
+        @param q:
+        @param color:
+        @return:
+        """
         arrow_magnitude = 9
         angle = math.atan2(p[1] - q[1], p[0] - q[0])
         px = q[0] + arrow_magnitude * math.cos(angle + math.pi / 4)
@@ -88,6 +99,11 @@ class PoseEstimation:
         cv2.line(img, (int(px), int(py)), q, color, 3)
 
     def face_orientation(self, frame, landmarks):
+        """
+        @param frame:
+        @param landmarks:
+        @return:
+        """
         image_points = np.array([
             (landmarks[0]),  # Left eye left corner
             (landmarks[1]),  # Right eye right corner
@@ -138,7 +154,6 @@ class PoseEstimation:
         roll = -math.degrees(math.asin(math.sin(roll)))
         yaw = math.degrees(math.asin(math.sin(yaw)))
 
-        print(f'{roll} - {pitch} - {yaw}')
+        print(f'Roll: {roll} - Pitch: {pitch} - Yaw: {yaw}')
 
-        # return imgpts, modelpts, (str(int(roll)), str(int(pitch)), str(int(yaw))), landmarks[2]
         return imgpts, modelpts, roll, pitch, yaw, landmarks[2]

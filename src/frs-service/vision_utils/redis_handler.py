@@ -42,6 +42,13 @@ class RedisHandler:
         except Exception as x:
             print(x)
 
+    def search_all_data(self):
+        try:
+            for k in self.client.scan_iter():
+                yield k
+        except Exception as x:
+            print(x)
+
     def toRedis(self, n):
         """Store given Numpy array 'a' in Redis under key 'n'"""
         # print(n.shape)

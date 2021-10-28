@@ -95,7 +95,7 @@ async function recognizeFace(formData) {
             data: formData,
             processData: false,
             contentType: false,
-            timeout: 0,
+            timeout: 5000,
             mimeType: "multipart/form-data",
             success: function (result) {
                 console.log(result);
@@ -112,7 +112,7 @@ async function recognizeFace(formData) {
                 var score = (parseFloat(matchScore) * 100).toFixed(2) + '%';
                 $("#score").html(score);
 
-                if (matchScore >= 0.55) {
+                if (matchScore >= 0.65) {
                     $("#matchStatus").html("Matched");
                 } else {
                     $("#matchStatus").html("Not Matched");
@@ -158,6 +158,11 @@ async function captureFrame() {
 //!
 async function processFrame(frame, frameBGR) {
     try {
+
+        detectFaceMask(frameBGR);
+
+        return;
+
         var faces = detectFaces(frameBGR);
         if (faces.length <= 0) {
             console.log("No face detected!");
@@ -211,15 +216,19 @@ async function processFrame(frame, frameBGR) {
 async function matchBlob() {
     try {
         $("#progress").show();
+
+        // get name from input
         let name = $("#name").val();
+        // get blob from canvas
         let blob = await getCanvasBlob(faceCanvas);
 
-        console.log(blob);
+        // if no blob data found then return
         if(blob === null || blob === undefined) {
             showMessage("No detected frame found!");
             return;
         }
 
+        // create form data object to call service
         const formData = new FormData();
         formData.append("image", blob, "photo.jpg");
         formData.append("data", JSON.stringify({ "name": name }));
