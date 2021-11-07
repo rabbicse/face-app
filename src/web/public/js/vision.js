@@ -14,6 +14,7 @@ const FPS = 15;  // Target number of frames processed per second.
 let netDet = undefined;
 let netRecogn = undefined;
 let netMask = undefined;
+let netMaskTf = undefined;
 let camera = undefined;
 
 //! [Run face detection model]
@@ -81,14 +82,13 @@ function detectFaceMask(img) {
 
 
 
-        var blob = cv.blobFromImage(frameRGB, 1/255.0, { width: 260, height: 260 });
+        var blob = cv.blobFromImage(frameRGB, 1 / 255.0, { width: 260, height: 260 });
         console.log('ok.....0');
         netMask.setInput(blob, "data");
         // const out = netMask.forward();
 
         var output = netMask.forward();
-        for(i = 0, n = output.data32F.length; i < n; i++)
-        {
+        for (i = 0, n = output.data32F.length; i < n; i++) {
             console.log(output.data32F[i]);
         }
 
@@ -171,6 +171,12 @@ async function initializeDnn() {
         netMask = cv.readNetFromCaffe(maskMrotoPath, maskWeightsPath);
 
         console.log("face mask net loaded...");
+
+
+        netMaskTf = await tf.loadLayersModel('./models/model.json');
+
+        console.log('face mask tf model loaded...');
+
     } catch (err) {
         console.log(err);
     }

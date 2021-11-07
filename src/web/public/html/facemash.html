@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+  <script type="text/javascript">
+    function drawCircle(context, point, width, height, radius) {
+      context.beginPath();
+      context.arc(point.x * width, point.y * height, radius, 0, 2 * Math.PI, false);
+      context.fillStyle = 'green';
+      context.fill();
+    }
+  </script>
+</head>
+
+<body>
+  <div class="container">
+    <video class="input_video" hidden></video>
+    <canvas id="input" class="output_canvas" width="1280px" height="720px"></canvas>
+  </div>
+
+
+  <script>
+    const videoElement = document.getElementsByClassName('input_video')[0];
+    const canvasElement = document.getElementsByClassName('output_canvas')[0];
+    const canvasCtx = canvasElement.getContext('2d');
+    const w = canvasElement.width;
+    let h = canvasElement.height;
+    const radius = 5;
+
+
+    function onOpenCvReady() {
+      console.log("On opencv ready...");
+
+      const faceMesh = new FaceMesh({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+        }
+      });
+      faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+
+      faceMesh.onResults(onResults);
+
+      const camera = new Camera(videoElement, {
+        onFrame: async () => {
+          await faceMesh.send({ image: videoElement });
+        },
+        width: 640,
+        height: 480
+      });
+      camera.start();
+    }
+
+    function onResults(results) {
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.drawImage(
+        results.image, 0, 0, canvasElement.width, canvasElement.height);
+      if (results.multiFaceLandmarks) {
+        for (const landmarks of results.multiFaceLandmarks) {
+
+          // console.log(landmarks);
+          // console.log(landmarks[0]);
+
+          let nose = landmarks[1];
+          let leftEye = landmarks[468];
+          let rightEye = landmarks[473];
+          let leftLip = landmarks[78];
+          let rightLip = landmarks[308];
+          let chick = landmarks[152];
+
+
+          let lm = {
+            nose: { x: nose.x, y: nose.y },
+            chin: { x: chick.x, y: chick.y },
+            leftEye: { x: leftEye.x, y: leftEye.y },
+            rightEye: { x: rightEye.x, y: rightEye.y },
+            leftLip: { x: leftEye.x, y: leftEye.y },
+            rightLip: { x: rightLip.x, y: rightLip.y }
+          }
+
+          let inp = document.getElementById('input');
+          let im = cv.imread(inp);
+
+          estimatePose(lm, im, canvasElement);
+
+          // drawCircle(canvasCtx, leftEye, w, h, radius);
+          // drawCircle(canvasCtx, rightEye, w, h, radius);
+          // drawCircle(canvasCtx, nose, w, h, radius);
+          // drawCircle(canvasCtx, leftLip, w, h, radius);
+          // drawCircle(canvasCtx, rightLip, w, h, radius);
+          // drawCircle(canvasCtx, chick, w, h, radius);
+
+
+
+          // const centerX = canvas.width / 2;
+          // const centerY = canvas.height / 2;
+
+
+          // drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION,
+          //   { color: '#C0C0C070', lineWidth: 1 });
+          // drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#FF3030'});
+          // drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYEBROW, {color: '#FF3030'});
+          // drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_IRIS, { color: '#FF3030' });
+          // drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, { color: '#30FF30' });
+          // drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYEBROW, {color: '#30FF30'});
+          // drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_IRIS, { color: '#30FF30' });
+          // drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, { color: '#E0E0E0' });
+          // drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, { color: '#E0E0E0' });
+        }
+      }
+      canvasCtx.restore();
+    }
+  </script>
+
+
+
+  <script type="text/javascript" async src="/js/opencv.js" onload="onOpenCvReady();"></script>
+  <script type="text/javascript" src="/js/head.pose.estimator.js"></script>
+</body>
+
+</html>
