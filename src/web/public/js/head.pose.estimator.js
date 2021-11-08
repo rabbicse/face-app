@@ -63,6 +63,8 @@ function estimatePose(landmarks, im, canvas) {
         let nose_end_point2DY = new cv.Mat();
         let nose_end_point2DX = new cv.Mat();
         let jaco = new cv.Mat();
+        let R = new cv.Mat();
+        let T = new cv.Mat();
 
 
         // 2D image points. If you change the image, you need to change vector
@@ -97,7 +99,7 @@ function estimatePose(landmarks, im, canvas) {
             distCoeffs,
             rvec,
             tvec,
-            false
+            true
         );
 
         // console.log(success);
@@ -124,6 +126,37 @@ function estimatePose(landmarks, im, canvas) {
                 noseEndPoint2DZ,
                 jaco
             );
+
+
+            cv.Rodrigues(rvec, R);
+
+            console.log("R", R.rows, R.cols);
+
+            console.log("TVEC", tvec.rows, tvec.cols);
+
+            // Initialise a MatVector
+            let matVec = new cv.MatVector();
+            // Push a Mat back into MatVector
+            matVec.push_back(R);
+
+            console.log(matVec.rows, matVec.cols);
+
+            T = cv.hconcat(R, tvec);
+
+            console.log("T: ", T.rows, T.cols);
+
+            let euler_angle = new cv.Mat();
+            let out_rotation = new cv.Mat();
+            let out_translation = new cv.Mat();
+
+            let x = new cv.Mat();
+            let y = new cv.Mat();
+            let z = new cv.Mat();
+
+            cv.decomposeProjectionMatrix(cameraMatrix,
+                    R, matVec, x, y, z, euler_angle);
+
+            console.log("Euler angle: ", euler_angle);
 
 
             // // color the detected eyes and nose to purple
