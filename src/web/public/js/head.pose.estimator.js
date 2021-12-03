@@ -134,29 +134,39 @@ function estimatePose(landmarks, im, canvas) {
 
             console.log("TVEC", tvec.rows, tvec.cols);
 
-            // Initialise a MatVector
-            let matVec = new cv.MatVector();
-            // Push a Mat back into MatVector
-            matVec.push_back(R);
+            console.log("Rotation Vector:", rvec.data64F);
+            console.log(
+                "Rotation Vector (in degree):",
+                rvec.data64F.map(d => (d / Math.PI) * 180)
+            );
+            console.log("Translation Vector:", tvec.data64F);
 
-            console.log(matVec.rows, matVec.cols);
+            // // Initialise a MatVector
+            // let matVec = new cv.MatVector();
+            // // Push a Mat back into MatVector
+            // matVec.push_back(R);
 
-            T = cv.hconcat(R, tvec);
+            // console.log(matVec.rows, matVec.cols);
 
-            console.log("T: ", T.rows, T.cols);
+            // cv.hconcat(matVec, tvec);
 
-            let euler_angle = new cv.Mat();
-            let out_rotation = new cv.Mat();
-            let out_translation = new cv.Mat();
+            // console.log("T: ", matVec);
 
-            let x = new cv.Mat();
-            let y = new cv.Mat();
-            let z = new cv.Mat();
+            // let euler_angle = new cv.Mat();
+            // let out_rotation = new cv.Mat();
+            // let out_translation = new cv.Mat();
 
-            cv.decomposeProjectionMatrix(cameraMatrix,
-                    R, matVec, x, y, z, euler_angle);
+            // let x = new cv.Mat();
+            // let y = new cv.Mat();
+            // let z = new cv.Mat();
 
-            console.log("Euler angle: ", euler_angle);
+            // let res = cv.decomposeProjectionMatrix(R);
+            // console.log(res);
+
+            // cv.decomposeProjectionMatrix(matVec, cameraMatrix,
+            //         out_rotation, out_translation, x, y, z, euler_angle);
+
+            // console.log("Euler angle: ", euler_angle);
 
 
             // // color the detected eyes and nose to purple

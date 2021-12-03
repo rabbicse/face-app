@@ -25,6 +25,9 @@ app.get('/matchtf', (req, res) => {
 app.get('/facemash', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/html/facemash.html'))
 })
+app.get('/pose', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/html/pose.html'))
+})
 
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`)

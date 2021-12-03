@@ -20,6 +20,11 @@
 
 <body>
   <div class="container">
+
+    <div class="col-sm-3">
+      <img id="matchImageSrc" alt="No Image" hidden />
+      <input class="form-control form-control-sm" type="file" id="matchImage" />
+    </div>
     <video class="input_video" hidden></video>
     <canvas id="input" class="output_canvas" width="1280px" height="720px"></canvas>
   </div>
@@ -39,6 +44,7 @@
 
       const faceMesh = new FaceMesh({
         locateFile: (file) => {
+          console.log(`https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`);
           return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
         }
       });
@@ -51,14 +57,14 @@
 
       faceMesh.onResults(onResults);
 
-      const camera = new Camera(videoElement, {
-        onFrame: async () => {
-          await faceMesh.send({ image: videoElement });
-        },
-        width: 640,
-        height: 480
-      });
-      camera.start();
+      // const camera = new Camera(videoElement, {
+      //   onFrame: async () => {
+      //     await faceMesh.send({ image: videoElement });
+      //   },
+      //   width: 640,
+      //   height: 480
+      // });
+      // camera.start();
     }
 
     function onResults(results) {
