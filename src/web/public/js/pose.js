@@ -41,7 +41,7 @@ async function onOpenCvReady() {
 
     // load dnn models
     // loadModels(processAsync);
-    await initializeDnn();
+    // await initializeDnn();
 
     showMessage("Dnn models loaded...");
 
@@ -99,8 +99,8 @@ function onResults(results) {
             // console.log(landmarks[0]);
 
             let nose = landmarks[1];
-            let leftEye = landmarks[468];
-            let rightEye = landmarks[473];
+            let leftEye = landmarks[468]; // landmarks[130]; // stable
+            let rightEye = landmarks[473] // landmarks[359];// ;
             let leftLip = landmarks[78];
             let rightLip = landmarks[308];
             let chick = landmarks[152];
@@ -121,9 +121,9 @@ function onResults(results) {
 
             cv.circle(im, { x: nose.x * im.cols, y: nose.y * im.rows }, radius, [0, 255, 0, 255], -1); // nose
             cv.circle(im, { x: chick.x * im.cols, y: chick.y * im.rows }, radius, [0, 255, 0, 255], -1); // chin
-            cv.circle(im, { x: leftEye.x * im.cols, y: leftEye.y * im.rows }, radius, [0, 255, 0, 255], -1);
+            cv.circle(im, { x: leftEye.x * im.cols, y: leftEye.y * im.rows }, radius, [0, 0, 255, 255], -1);
             cv.circle(im, { x: rightEye.x * im.cols, y: rightEye.y * im.rows }, radius, [0, 255, 0, 255], -1);
-            cv.circle(im, { x: leftLip.x * im.cols, y: leftLip.y * im.rows }, radius, [0, 255, 0, 255], -1);
+            cv.circle(im, { x: leftLip.x * im.cols, y: leftLip.y * im.rows }, radius, [0, 0, 255, 255], -1);
             cv.circle(im, { x: rightLip.x * im.cols, y: rightLip.y * im.rows }, radius, [0, 255, 0, 255], -1);
 
             estimatePose(lm, im, canvas);
@@ -188,39 +188,40 @@ function estimatePose(landmarks, im, canvas) {
         let distCoeffs = cv.Mat.zeros(4, 1, cv.CV_64FC1); // Assuming no lens distortion
         let rvec = new cv.Mat({ width: 1, height: 3 }, cv.CV_64FC1);
         let tvec = new cv.Mat({ width: 1, height: 3 }, cv.CV_64FC1);
-        let pointZ = cv.matFromArray(1, 3, cv.CV_64FC1, [0.0, 0.0, 500.0]);
-        let pointY = cv.matFromArray(1, 3, cv.CV_64FC1, [0.0, 500.0, 0.0]);
-        let pointX = cv.matFromArray(1, 3, cv.CV_64FC1, [500.0, 0.0, 0.0]);
-        let noseEndPoint2DZ = new cv.Mat();
-        let nose_end_point2DY = new cv.Mat();
-        let nose_end_point2DX = new cv.Mat();
+        // let pointZ = cv.matFromArray(1, 3, cv.CV_64FC1, [0.0, 0.0, 500.0]);
+        // let pointY = cv.matFromArray(1, 3, cv.CV_64FC1, [0.0, 500.0, 0.0]);
+        // let pointX = cv.matFromArray(1, 3, cv.CV_64FC1, [500.0, 0.0, 0.0]);
+        // let noseEndPoint2DZ = new cv.Mat();
+        // let nose_end_point2DY = new cv.Mat();
+        // let nose_end_point2DX = new cv.Mat();
         let jaco = new cv.Mat();
         let R = new cv.Mat();
-        let T = new cv.Mat();
+        let jaco2 = new cv.Mat();
 
 
         // 2D image points. If you change the image, you need to change vector
         [
-            landmarks.nose.x,
-            landmarks.nose.y, // Nose tip
+            landmarks.nose.x * size.width,
+            landmarks.nose.y * size.height, // Nose tip
 
-            landmarks.chin.x,
-            landmarks.chin.y, // Nose tip
+            landmarks.chin.x * size.width,
+            landmarks.chin.y * size.height, // Nose tip
 
-            landmarks.leftEye.x,
-            landmarks.leftEye.y, // Nose tip
+            landmarks.leftEye.x * size.width,
+            landmarks.leftEye.y * size.height, // Nose tip
 
-            landmarks.rightEye.x,
-            landmarks.rightEye.y, // Nose tip
+            landmarks.rightEye.x * size.width,
+            landmarks.rightEye.y * size.height, // Nose tip
 
-            landmarks.leftLip.x,
-            landmarks.leftLip.y, // Nose tip
+            landmarks.leftLip.x * size.width,
+            landmarks.leftLip.y * size.height, // Nose tip
 
-            landmarks.rightLip.x,
-            landmarks.rightLip.y, // Nose tip
+            landmarks.rightLip.x * size.width,
+            landmarks.rightLip.y * size.height, // Nose tip
         ].map((v, i) => {
             imagePoints.data64F[i] = v;
         });
+        console.log(imagePoints);
 
 
 
@@ -250,14 +251,27 @@ function estimatePose(landmarks, im, canvas) {
 
             // console.log(cv.projectPoints);
 
+            let axis = cv.matFromArray(3, 3, cv.CV_64FC1, [500, 0.0, 0.0, 0.0, 500, 0.0, 0.0, 0.0, 500.0]);
+            let modelPointss = new cv.Mat();
             cv.projectPoints(
-                pointZ,
+                axis,
                 rvec,
                 tvec,
                 cameraMatrix,
                 distCoeffs,
-                noseEndPoint2DZ,
+                modelPointss,
                 jaco
+            );
+
+            let modelPoints2 = new cv.Mat();
+            cv.projectPoints(
+                modelPoints,
+                rvec,
+                tvec,
+                cameraMatrix,
+                distCoeffs,
+                modelPoints2,
+                jaco2
             );
 
 
@@ -339,24 +353,36 @@ function estimatePose(landmarks, im, canvas) {
 
             // https://blog-mahoroi-com.translate.goog/posts/2020/05/browser-head-pose-estimation/?_x_tr_sl=ja&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=sc
             // https://justadudewhohacks.github.io/opencv4nodejs/docs/Mat#decomposeProjectionMatrix
-            let out = new cv.Mat();
-            const cmat = new cv.Mat();
+            let cmat = new cv.Mat();
             let rotmat = new cv.Mat();
-            let travec = new cv.MatVector();
+            let travec = new cv.Mat();
             let rotmatX = new cv.Mat();
             let rotmatY = new cv.Mat();
             let rotmatZ = new cv.Mat();
             let eulerAngles = new cv.Mat();
-            let res = cv.decomposeProjectionMatrix(proj)
-            console.log(res);
-            //     cmat,
-            //     rotmat,
-            //     travec,
-            //     rotmatX,
-            //     rotmatY,
-            //     rotmatZ,
-            //     eulerAngles);
-            // console.log(eulerAngles);
+            cv.decomposeProjectionMatrix(proj,
+                cmat,
+                rotmat,
+                travec,
+                rotmatX,
+                rotmatY,
+                rotmatZ,
+                eulerAngles);
+
+            let pitch = eulerAngles.data64F[0];
+            let yaw = eulerAngles.data64F[1];
+            let roll = eulerAngles.data64F[2];
+
+            console.log('Roll: ', roll, 'Pitch: ', pitch, 'Yaw: ', yaw);
+            console.log('Roll: ', roll * Math.PI / 180, 'Pitch: ', pitch * Math.PI / 180, 'Yaw: ', yaw * Math.PI / 180);
+
+            
+            pitch = Math.asin(Math.sin(pitch * Math.PI / 180)) * 180 / Math.PI;
+            roll = -Math.asin(Math.sin(roll * Math.PI / 180)) * 180 / Math.PI;
+            yaw = Math.asin(Math.sin(yaw * Math.PI / 180)) * 180 / Math.PI;
+
+            console.log('Roll: ', roll, 'Pitch: ', pitch, 'Yaw: ', yaw);
+            // console.log('Roll: ', roll * Math.PI / 180, 'Pitch: ', pitch * Math.PI / 180, 'Yaw: ', yaw * Math.PI / 180);
 
             // let sq = Math.sqrt((tvec.data64F[7] * tvec.data64F[7]) + (tvec.data64F[8] * tvec.data64F[8]))
             // let x = Math.atan2(tvec.data64F[7], tvec.data64F[8]);
