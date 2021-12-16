@@ -1,5 +1,4 @@
 let output = undefined; // document.getElementById('output');
-let faceCanvas = undefined; // document.getElementById("face");
 let matchimageElement = undefined;
 let matchInputElement = undefined;
 let canvas = undefined;
@@ -36,7 +35,6 @@ function onDocumentReady() {
 //! [opencv ready]
 async function onOpenCvReady() {
     output = document.getElementById('output');
-    faceCanvas = document.getElementById("face");
     console.log("opencv is ready...");
 
     // load dnn models
@@ -85,6 +83,13 @@ function addImageEventListeners() {
         // Process frame for detection
         // processFrame(frame, frameBGR);
 
+        console.log("Image loaded...");
+
+        const context = canvas.getContext('2d');
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        sleep(100);
+
         faceMesh.send({ image: matchimageElement });
     };
 }
@@ -92,6 +97,7 @@ function addImageEventListeners() {
 
 
 function onResults(results) {
+    console.log(results);
     if (results.multiFaceLandmarks) {
         for (const landmarks of results.multiFaceLandmarks) {
 
@@ -99,8 +105,8 @@ function onResults(results) {
             // console.log(landmarks[0]);
 
             let nose = landmarks[1];
-            let leftEye = landmarks[468]; // landmarks[130]; // stable
-            let rightEye = landmarks[473] // landmarks[359];// ;
+            let leftEye = landmarks[468]; //landmarks[468]; // landmarks[130]; // stable
+            let rightEye = landmarks[473]; //landmarks[473] // landmarks[359];// ;
             let leftLip = landmarks[78];
             let rightLip = landmarks[308];
             let chick = landmarks[152];
@@ -119,16 +125,20 @@ function onResults(results) {
 
             let im = cv.imread(matchimageElement);
 
-            cv.circle(im, { x: nose.x * im.cols, y: nose.y * im.rows }, radius, [0, 255, 0, 255], -1); // nose
-            cv.circle(im, { x: chick.x * im.cols, y: chick.y * im.rows }, radius, [0, 255, 0, 255], -1); // chin
-            cv.circle(im, { x: leftEye.x * im.cols, y: leftEye.y * im.rows }, radius, [0, 0, 255, 255], -1);
-            cv.circle(im, { x: rightEye.x * im.cols, y: rightEye.y * im.rows }, radius, [0, 255, 0, 255], -1);
-            cv.circle(im, { x: leftLip.x * im.cols, y: leftLip.y * im.rows }, radius, [0, 0, 255, 255], -1);
-            cv.circle(im, { x: rightLip.x * im.cols, y: rightLip.y * im.rows }, radius, [0, 255, 0, 255], -1);
+            try {
+                cv.circle(im, { x: nose.x * im.cols, y: nose.y * im.rows }, radius, [0, 255, 0, 255], -1); // nose
+                cv.circle(im, { x: chick.x * im.cols, y: chick.y * im.rows }, radius, [0, 255, 0, 255], -1); // chin
+                cv.circle(im, { x: leftEye.x * im.cols, y: leftEye.y * im.rows }, radius, [0, 0, 255, 255], -1);
+                cv.circle(im, { x: rightEye.x * im.cols, y: rightEye.y * im.rows }, radius, [0, 255, 0, 255], -1);
+                cv.circle(im, { x: leftLip.x * im.cols, y: leftLip.y * im.rows }, radius, [0, 0, 255, 255], -1);
+                cv.circle(im, { x: rightLip.x * im.cols, y: rightLip.y * im.rows }, radius, [0, 255, 0, 255], -1);
 
-            estimatePose(lm, im, canvas);
+                estimatePose(lm, im, canvas);
 
-            cv.imshow(canvas, im);
+                cv.imshow(canvas, im);
+            } finally {
+                im.delete();
+            }
         }
     }
 }
@@ -282,6 +292,8 @@ function estimatePose(landmarks, im, canvas) {
             // console.log("R", R.data64F);
             // https://learnopencv.com/rotation-matrix-to-euler-angles/
             // https://coderedirect.com/questions/170082/how-to-calculate-the-angle-from-rotation-matrix
+            // https://coderedirect.com/questions/170082/how-to-calculate-the-angle-from-rotation-matrix
+            // https://www.joyk.com/dig/detail/1530041405701973
 
             // let sq = Math.sqrt((R.data64F[7] * R.data64F[7]) + (R.data64F[8] * R.data64F[8]))
             // let x = Math.atan2(R.data64F[7], R.data64F[8]);
@@ -376,7 +388,7 @@ function estimatePose(landmarks, im, canvas) {
             console.log('Roll: ', roll, 'Pitch: ', pitch, 'Yaw: ', yaw);
             console.log('Roll: ', roll * Math.PI / 180, 'Pitch: ', pitch * Math.PI / 180, 'Yaw: ', yaw * Math.PI / 180);
 
-            
+
             pitch = Math.asin(Math.sin(pitch * Math.PI / 180)) * 180 / Math.PI;
             roll = -Math.asin(Math.sin(roll * Math.PI / 180)) * 180 / Math.PI;
             yaw = Math.asin(Math.sin(yaw * Math.PI / 180)) * 180 / Math.PI;

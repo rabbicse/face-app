@@ -28,7 +28,9 @@ app.get('/facemash', (req, res) => {
 app.get('/pose', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/html/pose.html'))
 })
-
+app.get('/landmark', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/html/face-lm.html'))
+})
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`)
 })
