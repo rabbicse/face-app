@@ -62,7 +62,7 @@ function createDbConnection(dbName, dbVersion) {
 
 async function insertModel(dbName, dbVersion, storeName, model) {
     let db = await createDbConnection(dbName, dbVersion);
-    return new Promise(function (resolve) {        
+    return new Promise(function (resolve) {
         // create a new transaction
         const txn = db.transaction(storeName, 'readwrite');
 
@@ -410,25 +410,36 @@ function saveDnnToFile(path, data) {
 
 //! [Play webcam using userMedia]
 function processWebcamAsync(callback) {
+    let cameraFrameWidth = undefined;
+    let cameraFrameHeight = undefined;
     // Get a permission from user to use a camera.
-    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then(async function (stream) {
+    navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false
+    }).then(function (stream) {
+        stream.getTracks().forEach(function (track) {
+            // get track settings
+            let settings = track.getSettings();
+            // console.log(settings);
 
-            // get camera resolution
-            var devices = await navigator.mediaDevices.enumerateDevices()
-            console.log(devices);
-                // .then(gotDevices)
-                // .catch(errorCallback);
-
-
-            camera.srcObject = stream;
-            camera.onloadedmetadata = function (e) {
-                camera.play();
-
-                // callback
-                callback();
-            };
+            cameraFrameWidth = settings["width"];
+            cameraFrameHeight = settings["height"];
+            // console.log("w: ", w, " h: ", h);
         });
+        
+        camera.setAttribute("width", cameraFrameWidth);//camera_output.width);
+        camera.setAttribute("height", cameraFrameHeight);//camera_output.height);
+        console.log("camera width: ", camera.width, " camera height: ", camera.height);
+
+        camera.srcObject = stream;
+        camera.onloadedmetadata = function (e) {
+            // play webcam
+            camera.play();
+
+            // callback
+            callback();
+        };
+    });
 }
 //! [Play webcam using userMedia]
 

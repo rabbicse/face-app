@@ -58,14 +58,15 @@ function onDocumentReady() {
 
 //! [opencv ready]
 async function onOpenCvReady() {
+    camera_output = document.getElementById('camera_output');
     output = document.getElementById('output');
     faceCanvas = document.getElementById("face");
     console.log("opencv is ready...");
 
     // Create a camera object.
     camera = document.createElement("video");
-    camera.setAttribute("width", output.width);
-    camera.setAttribute("height", output.height);
+    // camera.setAttribute("width", output.width);
+    // camera.setAttribute("height", output.height);
 
     // load dnn models
     // loadModels(processAsync);
@@ -81,7 +82,7 @@ async function onOpenCvReady() {
 async function captureFrame() {
     //! [Open a camera stream]
     var cap = new cv.VideoCapture(camera);
-    console.log("h: ", camera.height, " w: ", camera.width)
+    console.log("Camera height: ", camera.height, " Camera width: ", camera.width)
     var frame = new cv.Mat(camera.height, camera.width, cv.CV_8UC4);
     var frameBGR = new cv.Mat(camera.height, camera.width, cv.CV_8UC3);
     //! [Open a camera stream]

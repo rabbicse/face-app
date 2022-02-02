@@ -29,6 +29,9 @@
 </head>
 
 <body class="d-flex flex-column h-100">
+
+    <canvas id="camera_output" hidden></canvas>
+
     <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
         <div id="liveToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header">
@@ -73,7 +76,7 @@
                     <div class="col-md-6">
                         <div class="h-100 p-1 bg-light border rounded-3">
                             <canvas id="output"
-                                style="width: 100%; max-width: 100%; min-width: 200px; min-height: 200px;"></canvas>
+                                style="width: 100%; max-width: 100%; min-width: 200px; min-height: 200px;"></canvas>                            
                         </div>
                     </div>
 

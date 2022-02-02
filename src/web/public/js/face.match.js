@@ -6,6 +6,7 @@ const webCamActive = "Webcam";
 const webCamInactive = "Webcam Off";
 
 let output = undefined; // document.getElementById('output');
+let camera_output = undefined; // document.getElementById('output');
 let faceCanvas = undefined; // document.getElementById("face");
 let matchimageElement = undefined;
 let matchInputElement = undefined;
@@ -63,13 +64,14 @@ function onDocumentReady() {
 //! [opencv ready]
 async function onOpenCvReady() {
     output = document.getElementById('output');
+    camera_output = document.getElementById('camera_output');
     faceCanvas = document.getElementById("face");
     console.log("opencv is ready...");
 
     // Create a camera object.
     camera = document.createElement("video");
-    camera.setAttribute("width", output.width);
-    camera.setAttribute("height", output.height);
+    // camera.setAttribute("width", output.width);
+    // camera.setAttribute("height", output.height);
 
     // load dnn models
     // loadModels(processAsync);
@@ -158,11 +160,6 @@ async function captureFrame() {
 //!
 async function processFrame(frame, frameBGR) {
     try {
-
-        detectFaceMask(frameBGR);
-
-        return;
-
         var faces = detectFaces(frameBGR);
         if (faces.length <= 0) {
             console.log("No face detected!");
