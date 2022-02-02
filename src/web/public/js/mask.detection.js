@@ -1,3 +1,7 @@
+const featureMapSizes = [[33, 33], [17, 17], [9, 9], [5, 5], [3, 3]];
+const anchorSizes = [[0.04, 0.056], [0.08, 0.11], [0.16, 0.22], [0.32, 0.45], [0.64, 0.72]];
+const anchorRatios = [[1, 0.62, 0.42], [1, 0.62, 0.42], [1, 0.62, 0.42], [1, 0.62, 0.42], [1, 0.62, 0.42]];
+
 // decode the output according to anchors
 function decodeBBox(anchors, rawOutput, variances = [0.1, 0.1, 0.2, 0.2]) {
     const [anchorXmin, anchorYmin, anchorXmax, anchorYmax] = tf.split(anchors, [1, 1, 1, 1], -1);
@@ -118,9 +122,7 @@ async function detectMask(imgToPredict) {
     return detectionResults;
 }
 
-featureMapSizes = [[33, 33], [17, 17], [9, 9], [5, 5], [3, 3]];
-anchorSizes = [[0.04, 0.056], [0.08, 0.11], [0.16, 0.22], [0.32, 0.45], [0.64, 0.72]];
-anchorRatios = [[1, 0.62, 0.42], [1, 0.62, 0.42], [1, 0.62, 0.42], [1, 0.62, 0.42], [1, 0.62, 0.42]];
+
 let anchors = anchorGenerator(featureMapSizes, anchorSizes, anchorRatios);
 
 
@@ -154,7 +156,7 @@ async function processFrame(frame, frameBGR) {
                 2);
         });
 
-        cv.imshow(output, frame);
+        // cv.imshow(output, frame);
 
         // If more than 1 face detected then return
         if (faces.length !== 1) {
@@ -178,6 +180,7 @@ async function processFrame(frame, frameBGR) {
     } catch (exp) {
         console.log(exp);
     } finally {
+        cv.imshow(output, frame);
         frame.delete();
         frameBGR.delete();
     }

@@ -81,6 +81,7 @@ async function onOpenCvReady() {
 async function captureFrame() {
     //! [Open a camera stream]
     var cap = new cv.VideoCapture(camera);
+    console.log("h: ", camera.height, " w: ", camera.width)
     var frame = new cv.Mat(camera.height, camera.width, cv.CV_8UC4);
     var frameBGR = new cv.Mat(camera.height, camera.width, cv.CV_8UC3);
     //! [Open a camera stream]

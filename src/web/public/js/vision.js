@@ -4,6 +4,9 @@ const weightsDownloadPath = '/models/res10_300x300_ssd_iter_140000_fp16.caffemod
 const maskProtoDownloadPath = '/models/face_mask_detection.prototxt';
 const maskWeightsDownloadPath = '/models/face_mask_detection.caffemodel';
 
+const maskProtoTfDownloadPath = '/models/model.json';
+const maskWeightsTfDownloadPath = '/models/group1-shard1of1.bin';
+
 const protoPath = 'face_detector.prototxt';
 const weightsPath = 'face_detector.caffemodel';
 
@@ -16,6 +19,111 @@ let netRecogn = undefined;
 let netMask = undefined;
 let netMaskTf = undefined;
 let camera = undefined;
+
+// IndexedDB
+let indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.OIndexedDB || window.msIndexedDB;
+let IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.OIDBTransaction || window.msIDBTransaction;
+let dbVersion = 1.0;
+let dbName = "FRS";
+let storeName = "Dnn";
+
+
+
+function createDbConnection(dbName, dbVersion) {
+    return new Promise(function (resolve) {
+        // var request = window.indexedDB.open(dbname)
+        const request = indexedDB.open(dbName, dbVersion);
+        // create the Contacts object store and indexes
+        request.onupgradeneeded = (event) => {
+            let db = event.target.result;
+
+            // create the object store 
+            // with auto-increment id
+            let store = db.createObjectStore('Dnn', {
+                autoIncrement: true
+            });
+
+            // create an index on the email property
+            let index = store.createIndex('model_name', 'model_name', {
+                unique: true
+            });
+        };
+
+        request.onsuccess = (event) => {
+            var idb = event.target.result;
+            resolve(idb);
+        };
+
+        request.onerror = (e) => {
+            alert("Enable to access IndexedDB, " + e.target.errorCode)
+        };
+    });
+}
+
+async function insertModel(dbName, dbVersion, storeName, model) {
+    let db = await createDbConnection(dbName, dbVersion);
+    return new Promise(function (resolve) {        
+        // create a new transaction
+        const txn = db.transaction(storeName, 'readwrite');
+
+        // get the Contacts object store
+        const store = txn.objectStore(storeName);
+        // put data to store
+        let query = store.put(model);
+
+        // handle success case
+        query.onsuccess = function (event) {
+            console.log(event);
+            resolve(event.result);
+        };
+
+        // handle the error case
+        query.onerror = function (event) {
+            console.log(event.target.errorCode);
+        }
+
+        // close the database once the 
+        // transaction completes
+        txn.oncomplete = function () {
+            db.close();
+        };
+    });
+}
+
+
+async function getModelByName(dbName, dbVersion, storeName, name) {
+    // create db connection
+    let db = await createDbConnection(dbName, dbVersion);
+
+    return new Promise(function (resolve) {
+        // create transaction
+        const txn = db.transaction(storeName, 'readonly');
+
+        // create object store by store name
+        const store = txn.objectStore(storeName);
+
+        // get the index from the Object Store
+        const index = store.index('model_name');
+        // query by indexes
+        let query = index.get(name);
+
+        // return the result object on success
+        query.onsuccess = (event) => {
+            // console.log(query.result); // result objects
+            resolve(query.result);
+        };
+
+        query.onerror = (event) => {
+            console.log(event.target.errorCode);
+        }
+
+        // close the database connection
+        txn.oncomplete = function () {
+            db.close();
+        };
+    });
+}
+
 
 //! [Run face detection model]
 function detectFaces(img) {
@@ -143,37 +251,98 @@ function detectFaceMask(img) {
 //! [Run face detection model]
 
 
+function getContactById(db, id) {
+    const txn = db.transaction('Contacts', 'readonly');
+    const store = txn.objectStore('Contacts');
+
+    let query = store.get(id);
+
+    query.onsuccess = (event) => {
+        if (!event.target.result) {
+            console.log(`The contact with ${id} not found`);
+        } else {
+            console.table(event.target.result);
+        }
+    };
+
+    query.onerror = (event) => {
+        console.log(event.target.errorCode);
+    }
+
+    txn.oncomplete = function () {
+        db.close();
+    };
+};
+
+
+
 //! [Initialize DNN]
 async function initializeDnn() {
     try {
+
+        // var db = await createDbConnection(dbName, dbVersion);
+        // console.log(db);
+        let faceDetectionProtoData = await getModelByName(dbName, dbVersion, storeName, protoPath);
+        console.log("face detection proto data: ", faceDetectionProtoData);
+
         // Download proto file for caffe model
-        await downloadFileAsync(protoPath, protoDownloadPath);
-        console.log("proto downloaded...");
+        if (faceDetectionProtoData === undefined) {
+            await downloadFileAsync(protoPath, protoDownloadPath);
+            console.log("proto downloaded...");
+        } else {
+            saveDnnToFile(faceDetectionProtoData['model_name'], new Uint8Array(faceDetectionProtoData['model']));
+        }
 
-        await downloadFileAsync('face_detector.caffemodel', weightsDownloadPath);
+        let faceDetectionWeightData = await getModelByName(dbName, dbVersion, storeName, weightsPath);
+        console.log("face detection caffe model data: ", faceDetectionWeightData);
 
-        console.log("caffemodel downloaded...");
+        if (faceDetectionWeightData === undefined) {
+            await downloadFileAsync(weightsPath, weightsDownloadPath);
+            console.log("caffemodel downloaded...");
+        } else {
+            saveDnnToFile(faceDetectionWeightData['model_name'], new Uint8Array(faceDetectionWeightData['model']));
+        }
 
-        // Download proto file for caffe model face mask
-        await downloadFileAsync(maskMrotoPath, maskProtoDownloadPath);
-        console.log("proto downloaded...");
+        let faceMaskDetectionProtoData = await getModelByName(dbName, dbVersion, storeName, 'model.json');
+        console.log("face mask detection proto: ", faceMaskDetectionProtoData);
+        if (faceMaskDetectionProtoData === undefined) {
+            await downloadTfModelAsync('model.json', maskProtoTfDownloadPath);
+            console.log("model.json downloaded...");
+        }
 
-        await downloadFileAsync(maskWeightsPath, maskWeightsDownloadPath);
+        let faceMaskDetectionWeightsData = await getModelByName(dbName, dbVersion, storeName, 'group1-shard1of1.bin');
+        console.log("face mask detection weights: ", faceMaskDetectionWeightsData);
+        if (faceMaskDetectionWeightsData === undefined) {
+            await downloadTfModelAsync('group1-shard1of1.bin', maskWeightsTfDownloadPath);
+            console.log("tf bin file downloaded...");
+        }
 
-        console.log("caffemodel downloaded...");
+        // // Download proto file for caffe model face mask
+        // await downloadFileAsync(maskMrotoPath, maskProtoDownloadPath);
+        // console.log("proto downloaded...");
+
+        // await downloadFileAsync(maskWeightsPath, maskWeightsDownloadPath);
+
+        // console.log("caffemodel downloaded...");
 
         await sleep(500);
 
         netDet = cv.readNetFromCaffe('face_detector.prototxt', 'face_detector.caffemodel');
 
-        console.log("net loaded...");
+        console.log("face detection model loaded...");
 
-        netMask = cv.readNetFromCaffe(maskMrotoPath, maskWeightsPath);
+        // netMask = cv.readNetFromCaffe(maskMrotoPath, maskWeightsPath);
 
-        console.log("face mask net loaded...");
+        // console.log("face mask net loaded...");
 
+        // const model = await tf.loadLayersModel('indexeddb://tf-mask-model');
+        // console.log("idb model: ", model);
 
-        netMaskTf = await tf.loadLayersModel('./models/model.json');
+        // netMaskTf = await tf.loadLayersModel('/models/model.json');
+
+        netMaskTf = await tf.loadLayersModel('indexeddb://tf-mask-model');
+
+        // await netMaskTf.save('indexeddb://tf-mask-model');
 
         console.log('face mask tf model loaded...');
 
@@ -196,7 +365,11 @@ async function downloadFileAsync(path, uri) {
             success: function (response) {
                 console.log("download success...");
                 let data = new Uint8Array(response);
-                cv.FS_createDataFile('/', path, data, true, false, false);
+
+                // insert model to index db
+                insertModel(dbName, dbVersion, storeName, { "model_name": path, "model": data });
+
+                saveDnnToFile(path, data);
             },
             error: function (err) {
                 console.log(err);
@@ -208,11 +381,46 @@ async function downloadFileAsync(path, uri) {
 }
 //! [Download file from http to browser path]
 
+
+async function downloadTfModelAsync(path, uri) {
+    try {
+        return $.ajax({
+            method: "GET",
+            url: uri,
+            timeout: 0,
+            success: function (response) {
+                console.log("download success...");
+                let data = new Uint8Array(response);
+
+                // insert model to index db
+                insertModel(dbName, dbVersion, storeName, { "model_name": path, "model": data });
+            },
+            error: function (err) {
+                console.log(err);
+            }
+        });
+    } catch (ex) {
+        console.log(ex);
+    }
+}
+
+function saveDnnToFile(path, data) {
+    cv.FS_createDataFile('/', path, data, true, false, false);
+}
+
 //! [Play webcam using userMedia]
 function processWebcamAsync(callback) {
     // Get a permission from user to use a camera.
     navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then(function (stream) {
+        .then(async function (stream) {
+
+            // get camera resolution
+            var devices = await navigator.mediaDevices.enumerateDevices()
+            console.log(devices);
+                // .then(gotDevices)
+                // .catch(errorCallback);
+
+
             camera.srcObject = stream;
             camera.onloadedmetadata = function (e) {
                 camera.play();
