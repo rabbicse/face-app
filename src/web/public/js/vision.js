@@ -353,7 +353,7 @@ async function initializeOpenCV() {
             document.getElementById("script").innerHTML = opencvData['model'];
 
             await initializeDnn();
-            
+
         } else {
             document.getElementById("script").innerHTML = opencvData['model'];
 
@@ -431,8 +431,25 @@ async function initializeDnn() {
         // netMask = cv.readNetFromCaffe(maskMrotoPath, maskWeightsPath);
 
         // todo:
-        await downloadFileAsync(maskMrotoPath, maskProtoDownloadPath, true);
-        await downloadFileAsync(maskWeightsPath, maskWeightsDownloadPath, true);
+        let faceMaskProtoData = await getModelByName(dbName, dbVersion, storeName, maskMrotoPath);
+        console.log("face mask proto data: ", faceMaskProtoData);
+        if (faceMaskProtoData === undefined) {
+            await downloadFileAsync(maskMrotoPath, maskProtoDownloadPath, true);
+            console.log("proto downloaded...");
+        } else {
+            saveDnnToFile(faceMaskProtoData['model_name'], new Uint8Array(faceMaskProtoData['model']));
+        }
+        // await downloadFileAsync(maskMrotoPath, maskProtoDownloadPath, true);
+
+        let faceMaskWeightsData = await getModelByName(dbName, dbVersion, storeName, maskMrotoPath);
+        console.log("face mask proto data: ", faceMaskWeightsData);
+        if (faceMaskWeightsData === undefined) {
+            await downloadFileAsync(maskWeightsPath, maskWeightsDownloadPath, true);
+            console.log("caffee downloaded...");
+        } else {
+            saveDnnToFile(faceMaskWeightsData['model_name'], new Uint8Array(faceMaskWeightsData['model']));
+        }
+        // await downloadFileAsync(maskWeightsPath, maskWeightsDownloadPath, true);
 
         netMask = cv.readNetFromCaffe(maskMrotoPath, maskWeightsPath);
         // todo:
