@@ -350,6 +350,10 @@ async function initializeOpenCV() {
         if (opencvData === undefined) {
             await downloadTextFileAsync(opencvPath, opencvDownloadPath);
             // console.log("opencv downloaded...");
+            document.getElementById("script").innerHTML = opencvData['model'];
+
+            await initializeDnn();
+            
         } else {
             document.getElementById("script").innerHTML = opencvData['model'];
 

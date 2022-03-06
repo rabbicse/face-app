@@ -74,6 +74,8 @@ function onDocumentReady() {
 
         // load opencv if exists inside indexeddb
         await initializeOpenCV();
+
+        showMessage("Dnn models loaded...");
     });
 }
 //! [document ready]
