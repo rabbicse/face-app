@@ -16,13 +16,23 @@ let toast = undefined;
 //! [On document ready]
 function onDocumentReady() {
     $(document).ready(async function () {
+
+        // Update elements
+        output = document.getElementById('output');
+        camera_output = document.getElementById('camera_output');
+        faceCanvas = document.getElementById("face");
+        console.log("opencv is ready...");
+
+        // Create a camera object.
+        camera = document.createElement("video");
+        // update elements
+
+
+
         //! [initialize variables based on dom]
         matchInputElement = document.getElementById('matchImage');
         matchimageElement = document.getElementById('matchImageSrc');
         //! [initialize variables based on dom]
-
-        // Show hide
-        $("#progress").hide();
 
         // Toast
         var toastElList = [].slice.call(document.querySelectorAll('.toast'))
@@ -30,16 +40,6 @@ function onDocumentReady() {
             return new bootstrap.Toast(toastEl)
         });
         toast = toastList[0];
-
-
-        // Update elements
-        output = document.getElementById('output');
-        camera_output = document.getElementById('camera_output');
-        faceCanvas = document.getElementById("face");
-        console.log("opencv is ready...");
-    
-        // Create a camera object.
-        camera = document.createElement("video");
 
 
 
@@ -76,6 +76,9 @@ function onDocumentReady() {
         await initializeOpenCV();
 
         showMessage("Dnn models loaded...");
+
+        // Show hide
+        $("#progress").hide();
     });
 }
 //! [document ready]
