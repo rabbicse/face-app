@@ -202,7 +202,7 @@ class FaceHandler:
             result = self.face_recognizer.get_embedding(crop_img)
             results.append(result)
 
-        return {'status': 0, 'results': results}
+        return {'status': 2 if len(results) == 0 else 0, 'results': results}
 
     @TimeitDecorator()
     def match(self, embedding1, embedding2):

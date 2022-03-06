@@ -1,4 +1,5 @@
 import base64
+import datetime
 import json
 import os
 import warnings
@@ -189,6 +190,7 @@ def match_v3():
             return Response('FRS engine error!', status=500)
 
         if result['status'] == 1:
+            cv2.imwrite(f'logs/{datetime.datetime.now()}.jpg', frame)
             return Response('No face detected!', status=400)
         elif result['status'] == 2:
             return Response('Face orientation issue!', status=400)
@@ -210,7 +212,7 @@ def match_v3():
 
 
 def main():
-    app.run(host='0.0.0.0', port=os.getenv('FR_PORT', 5000), debug=True)
+    app.run(host='0.0.0.0', port=os.getenv('FR_PORT', 5000), ssl_context='adhoc', debug=True)
 
 
 if __name__ == "__main__":

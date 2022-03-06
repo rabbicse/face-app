@@ -7,6 +7,7 @@ const webCamInactive = "Webcam Off";
 
 let output = undefined; // document.getElementById('output');
 let faceCanvas = undefined; // document.getElementById("face");
+let faceCanvasHidden = undefined; // document.getElementById("face");
 let matchimageElement = undefined;
 let matchInputElement = undefined;
 
@@ -61,6 +62,7 @@ async function onOpenCvReady() {
     camera_output = document.getElementById('camera_output');
     output = document.getElementById('output');
     faceCanvas = document.getElementById("face");
+    faceCanvasHidden = document.getElementById("face_hidden");
     console.log("opencv is ready...");
 
     // Create a camera object.
@@ -135,8 +137,8 @@ async function processFrame(frame, frameBGR) {
         }
 
         let rect = faces[0];
-        let xTh = rect.width / 5;
-        let yTh = rect.height / 5;
+        let xTh = rect.width / 3;
+        let yTh = rect.height / 3;
         let x = Math.max(rect.x - xTh, 0);
         let y = Math.max(rect.y - yTh, 0);
         let x1 = Math.min(rect.x + rect.width + xTh, frame.cols);
@@ -146,6 +148,7 @@ async function processFrame(frame, frameBGR) {
         let face = oFrame.roi(rct);
         // face = cv.cvtColor(face, cv.COLOR_RGBA2BGR);
         cv.imshow(faceCanvas, face);
+        cv.imshow(faceCanvasHidden, face);
 
         return true;
     } catch (exp) {
@@ -165,11 +168,15 @@ async function matchBlob() {
 
         // get name from input
         let name = $("#name").val();
+
+        console.log("Face Size: ", faceCanvas.width, " x ", faceCanvas.height);
+        console.log("Face Size hidden: ", faceCanvasHidden.width, " x ", faceCanvasHidden.height);
+
         // get blob from canvas
-        let blob = await getCanvasBlob(faceCanvas);
+        let blob = await getCanvasBlob(faceCanvasHidden);
 
         // if no blob data found then return
-        if(blob === null || blob === undefined) {
+        if (blob === null || blob === undefined) {
             showMessage("No detected frame found!");
             return;
         }
@@ -179,13 +186,22 @@ async function matchBlob() {
         formData.append("image", blob, "photo.jpg");
         formData.append("data", JSON.stringify({ "name": name }));
 
-        isRecognizing = true;
-        await recognizeFace(formData);
-        isRecognizing = false;
-        $("#progress").hide();
+
+        try {
+            isRecognizing = true;
+            await recognizeFace(formData);
+        } catch (err) {
+            console.log(err);
+
+        } finally {
+            isRecognizing = false;
+        }
+    } catch (exp) {
+        console.log(exp);
     } finally {
         isEnrolling = false;
         $("#progressEnroll").hide();
+        $("#progress").hide();
     }
 }
 //! [Match blob from canvas]

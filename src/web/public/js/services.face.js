@@ -3,7 +3,8 @@ async function recognizeFace(formData) {
     try {
         return $.ajax({
             method: "POST",
-            url: "http://localhost:5000/match/v1",
+            // url: "http://localhost:5000/match/v1",
+            url: "https://192.168.0.134:5000/match/v1",
             data: formData,
             processData: false,
             contentType: false,

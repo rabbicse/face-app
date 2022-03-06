@@ -1,8 +1,11 @@
 const protoDownloadPath = '/models/deploy_lowres.prototxt';
 const weightsDownloadPath = '/models/res10_300x300_ssd_iter_140000_fp16.caffemodel';
 
-const maskProtoDownloadPath = '/models/face_mask_detection.prototxt';
-const maskWeightsDownloadPath = '/models/face_mask_detection.caffemodel';
+// const maskProtoDownloadPath = '/models/face_mask_detection.prototxt';
+// const maskWeightsDownloadPath = '/models/face_mask_detection.caffemodel';
+
+const maskProtoDownloadPath = '/models/landmark_deploy.prototxt';
+const maskWeightsDownloadPath = '/models/VanFace.caffemodel';
 
 const maskProtoTfDownloadPath = '/models/model.json';
 const maskWeightsTfDownloadPath = '/models/group1-shard1of1.bin';
@@ -12,6 +15,11 @@ const weightsPath = 'face_detector.caffemodel';
 
 const maskMrotoPath = 'face_mask_detection.prototxt';
 const maskWeightsPath = 'face_mask_detection.caffemodel';
+
+
+const opencvDownloadPath = '/js/opencv.js';
+const opencvPath = 'opencv.js';
+
 
 const FPS = 15;  // Target number of frames processed per second.
 let netDet = undefined;
@@ -177,9 +185,19 @@ function detectFaceMask(img) {
         // console.log(layersNames);
 
 
+        x1 = 0
+        y1 = 0
+        x2 = img.cols
+        y2 = img.rows
+
+
         // Convert image to blob
         let frameRGB = new cv.Mat(img.cols, img.rows, cv.CV_8UC3);
-        cv.cvtColor(img, frameRGB, cv.COLOR_BGR2RGB);
+        cv.cvtColor(img, frameRGB, cv.COLOR_BGR2GRAY);
+
+        let imgScaled = new cv.Mat();
+        cv.resize(frameRGB, imgScaled, new cv.Size(60, 60), 0, 0, cv.INTER_CUBIC);
+
         // var blob = cv.blobFromImage(frameRGB, 1 / 255.0, { width: 260, height: 260 });
         // blob = cv2.dnn.blobFromImage(image, 1 / 255.0,  size = target_shape)
         // netMask.setInput(blob);
@@ -189,16 +207,19 @@ function detectFaceMask(img) {
         // console.log(layersNames)
 
 
-
-        var blob = cv.blobFromImage(frameRGB, 1 / 255.0, { width: 260, height: 260 });
+        console.log(netMask);
+        var blob = cv.blobFromImage(imgScaled, 1, { width: 60, height: 60 });
         console.log('ok.....0');
+        console.log(blob);
+        // netMask.name = 'FaceThink_face_landmark_test';
         netMask.setInput(blob, "data");
+        console.log('ok.....1');
         // const out = netMask.forward();
 
         var output = netMask.forward();
-        for (i = 0, n = output.data32F.length; i < n; i++) {
-            console.log(output.data32F[i]);
-        }
+        console.log("Result: ...", output);
+        return output;
+
 
         // console.log(output)
 
@@ -251,6 +272,49 @@ function detectFaceMask(img) {
 //! [Run face detection model]
 
 
+//! [Run face detection model]
+// https://creativetech.blog/home/face-landmarks-for-arcore-augmented-faces
+function detectFaceLandmark(img) {
+    var faces = [];
+
+    try {
+        let detectionResults = tf.tidy(() => {
+            let frameRGB = new cv.Mat(img.cols, img.rows, cv.CV_8UC3);
+            cv.cvtColor(img, frameRGB, cv.COLOR_BGRA2RGB);
+
+
+            let tensor = tf.tensor(frameRGB.data, [frameRGB.rows, frameRGB.cols, frameRGB.channels()]);
+            let example = tf.image.resizeBilinear(tensor, [192, 192]);
+            example = example.expandDims(0).toFloat().div(tf.scalar(255));
+            let prediction = netMaskTf.predict(example);
+            let logits = Array.from(prediction.dataSync());
+            logits = logits.slice(0, logits.length - 1);
+
+            let lmarks = [];
+            for (i = 0; i < logits.length; i += 3) {
+                lmarks.push([logits[i] / 192, logits[i + 1] / 192, logits[i + 2] / 192]);
+            }
+
+
+            // for (i = 0; i < lmarks.length; i++) {
+
+            // }
+
+            return lmarks;
+        });
+
+        // console.log(detectionResults);
+        return detectionResults;
+
+    } catch (ex) {
+        console.log("Error when apply face mask detection");
+        console.log(ex);
+    }
+    return faces;
+};
+//! [Run face detection model]
+
+
 function getContactById(db, id) {
     const txn = db.transaction('Contacts', 'readonly');
     const store = txn.objectStore('Contacts');
@@ -275,6 +339,29 @@ function getContactById(db, id) {
 };
 
 
+//! [Initialize OpenCV]
+async function initializeOpenCV() {
+    try {
+        // check if opencv key exists
+        let opencvData = await getModelByName(dbName, dbVersion, storeName, opencvPath);
+        console.log("opencv data: ", opencvData);
+
+        // Download proto file for caffe model
+        if (opencvData === undefined) {
+            await downloadTextFileAsync(opencvPath, opencvDownloadPath);
+            // console.log("opencv downloaded...");
+        } else {
+            document.getElementById("script").innerHTML = opencvData['model'];
+
+            await initializeDnn();
+        }
+    } catch (err) {
+        console.log("Error when load opencv");
+        console.log(err);
+    }
+}
+//! [Initialize DNN]
+
 
 //! [Initialize DNN]
 async function initializeDnn() {
@@ -287,7 +374,7 @@ async function initializeDnn() {
 
         // Download proto file for caffe model
         if (faceDetectionProtoData === undefined) {
-            await downloadFileAsync(protoPath, protoDownloadPath);
+            await downloadFileAsync(protoPath, protoDownloadPath, true);
             console.log("proto downloaded...");
         } else {
             saveDnnToFile(faceDetectionProtoData['model_name'], new Uint8Array(faceDetectionProtoData['model']));
@@ -297,25 +384,31 @@ async function initializeDnn() {
         console.log("face detection caffe model data: ", faceDetectionWeightData);
 
         if (faceDetectionWeightData === undefined) {
-            await downloadFileAsync(weightsPath, weightsDownloadPath);
+            await downloadFileAsync(weightsPath, weightsDownloadPath, true);
             console.log("caffemodel downloaded...");
         } else {
             saveDnnToFile(faceDetectionWeightData['model_name'], new Uint8Array(faceDetectionWeightData['model']));
         }
 
-        let faceMaskDetectionProtoData = await getModelByName(dbName, dbVersion, storeName, 'model.json');
-        console.log("face mask detection proto: ", faceMaskDetectionProtoData);
-        if (faceMaskDetectionProtoData === undefined) {
-            await downloadTfModelAsync('model.json', maskProtoTfDownloadPath);
-            console.log("model.json downloaded...");
-        }
+        // let faceMaskDetectionProtoData = await getModelByName(dbName, dbVersion, storeName, 'model.json');
+        // console.log("face mask detection proto: ", faceMaskDetectionProtoData);
+        // if (faceMaskDetectionProtoData === undefined) {
+        //     // await downloadTfModelAsync('model.json', maskProtoTfDownloadPath);
+        //     await downloadTfModelAsync('model.json', maskProtoDownloadPath);
+        //     console.log("model.json downloaded...");
+        // } else {
+        //     saveDnnToFile(faceMaskDetectionProtoData['model_name'], new Uint8Array(faceMaskDetectionProtoData['model']));
+        // }
 
-        let faceMaskDetectionWeightsData = await getModelByName(dbName, dbVersion, storeName, 'group1-shard1of1.bin');
-        console.log("face mask detection weights: ", faceMaskDetectionWeightsData);
-        if (faceMaskDetectionWeightsData === undefined) {
-            await downloadTfModelAsync('group1-shard1of1.bin', maskWeightsTfDownloadPath);
-            console.log("tf bin file downloaded...");
-        }
+        // let faceMaskDetectionWeightsData = await getModelByName(dbName, dbVersion, storeName, 'group1-shard1of1.bin');
+        // console.log("face mask detection weights: ", faceMaskDetectionWeightsData);
+        // if (faceMaskDetectionWeightsData === undefined) {
+        //     // await downloadTfModelAsync('group1-shard1of1.bin', maskWeightsTfDownloadPath);
+        //     await downloadTfModelAsync('group1-shard1of1.bin', maskWeightsDownloadPath);
+        //     console.log("tf bin file downloaded...");
+        // } else {
+        //     saveDnnToFile(faceMaskDetectionWeightsData['model_name'], new Uint8Array(faceMaskDetectionWeightsData['model']));
+        // }
 
         // // Download proto file for caffe model face mask
         // await downloadFileAsync(maskMrotoPath, maskProtoDownloadPath);
@@ -333,27 +426,36 @@ async function initializeDnn() {
 
         // netMask = cv.readNetFromCaffe(maskMrotoPath, maskWeightsPath);
 
-        // console.log("face mask net loaded...");
+        // todo:
+        await downloadFileAsync(maskMrotoPath, maskProtoDownloadPath, true);
+        await downloadFileAsync(maskWeightsPath, maskWeightsDownloadPath, true);
+
+        netMask = cv.readNetFromCaffe(maskMrotoPath, maskWeightsPath);
+        // todo:
+        console.log("face mask net loaded...");
 
         // const model = await tf.loadLayersModel('indexeddb://tf-mask-model');
         // console.log("idb model: ", model);
 
-        // netMaskTf = await tf.loadLayersModel('/models/model.json');
+        netMaskTf = await tf.loadGraphModel('/models/model.json');
+        // netMaskTf = await tf.loadLayersModel('/models/face_mesh.tflite');
+        console.log("face landmark net loaded...");
 
-        netMaskTf = await tf.loadLayersModel('indexeddb://tf-mask-model');
+        // netMaskTf = await tf.loadLayersModel('indexeddb://tf-mask-model');
 
         // await netMaskTf.save('indexeddb://tf-mask-model');
 
-        console.log('face mask tf model loaded...');
+        // console.log('face mask tf model loaded...');
 
     } catch (err) {
+        console.log("Error when load models");
         console.log(err);
     }
 }
 //! [Initialize DNN]
 
 //! [Download file from http to browser path]
-async function downloadFileAsync(path, uri) {
+async function downloadFileAsync(path, uri, saveDnn) {
     try {
         return $.ajax({
             method: "GET",
@@ -364,15 +466,20 @@ async function downloadFileAsync(path, uri) {
             timeout: 0,
             success: function (response) {
                 console.log("download success...");
-                let data = new Uint8Array(response);
 
-                // insert model to index db
-                insertModel(dbName, dbVersion, storeName, { "model_name": path, "model": data });
-
-                saveDnnToFile(path, data);
+                if (saveDnn === true) {
+                    let data = new Uint8Array(response);
+                    // insert model to index db
+                    insertModel(dbName, dbVersion, storeName, { "model_name": path, "model": data });
+                    saveDnnToFile(path, data);
+                } else {
+                    console.log(response);
+                    let dta = new String(response);
+                    insertModel(dbName, dbVersion, storeName, { "model_name": path, "model": dta });
+                }
             },
             error: function (err) {
-                console.log(err);
+                console.log("Error when download file...", err);
             }
         });
     } catch (ex) {
@@ -381,6 +488,31 @@ async function downloadFileAsync(path, uri) {
 }
 //! [Download file from http to browser path]
 
+
+//! [Download file from http to browser path]
+async function downloadTextFileAsync(path, uri) {
+    try {
+        return $.ajax({
+            method: "GET",
+            dataType: "text",
+            url: uri,
+            timeout: 0,
+            success: function (response) {
+                console.log("download success...");
+                console.log(response);
+                // let text = String.fromCharCode.apply(null, data);
+                // console.log(text);
+                insertModel(dbName, dbVersion, storeName, { "model_name": path, "model": response });
+            },
+            error: function (err) {
+                console.log("Error when download file...", err);
+            }
+        });
+    } catch (ex) {
+        console.log(ex);
+    }
+}
+//! [Download file from http to browser path]
 
 async function downloadTfModelAsync(path, uri) {
     try {
@@ -426,7 +558,7 @@ function processWebcamAsync(callback) {
             cameraFrameHeight = settings["height"];
             // console.log("w: ", w, " h: ", h);
         });
-        
+
         camera.setAttribute("width", cameraFrameWidth);//camera_output.width);
         camera.setAttribute("height", cameraFrameHeight);//camera_output.height);
         console.log("camera width: ", camera.width, " camera height: ", camera.height);
@@ -462,7 +594,7 @@ function getCanvasBlob(canvas) {
         canvas.toBlob(function (blob) {
             resolve(blob)
         }, "image/jpeg", 0.95)
-    })
+    });
 }
 //! [Convert Canvas to blob]
 

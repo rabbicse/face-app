@@ -75,7 +75,7 @@ function addImageEventListeners() {
         console.log("Source changes....");
     }, false);
 
-    matchimageElement.onload = function () {
+    matchimageElement.onload = async function () {
         // let frame = cv.imread(matchimageElement);
         // let frameBGR = new cv.Mat(frame.cols, frame.rows, cv.CV_8UC3);
         // cv.cvtColor(frame, frameBGR, cv.COLOR_RGBA2BGR);
@@ -85,12 +85,10 @@ function addImageEventListeners() {
 
         console.log("Image loaded...");
 
-        const context = canvas.getContext('2d');
-        context.clearRect(0, 0, canvas.width, canvas.height);
+        await faceMesh.send({ image: matchimageElement });
 
-        sleep(100);
-
-        faceMesh.send({ image: matchimageElement });
+        // const context = canvas.getContext('2d');        
+        // context.clearRect(0, 0, canvas.width, canvas.height);
     };
 }
 //! [add image from client machine and show to canvas]
@@ -144,7 +142,7 @@ function onResults(results) {
 }
 
 
-function estimatePose(landmarks, im, canvas) {
+function estimatePose(landmarks, im) {
 
     try {
         const numRows = 6;
