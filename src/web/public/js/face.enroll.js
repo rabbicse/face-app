@@ -97,7 +97,7 @@ async function enrollFace(formData) {
         console.log("ok...enrollFace");
         return $.ajax({
             method: "POST",
-            url: "http://" + hostname + ":5000/enroll/v1",
+            url: "https://" + hostname + ":5000/enroll/v1",
             data: formData,
             processData: false,
             contentType: false,

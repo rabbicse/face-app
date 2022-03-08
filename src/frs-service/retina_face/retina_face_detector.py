@@ -6,7 +6,7 @@ from retina_face.data import cfg_mnet, cfg_re50
 from retina_face.prior_box import PriorBox
 from retina_face.retina_face import RetinaFace
 
-CONFIDENCE_THRESHOLD = 0.6
+CONFIDENCE_THRESHOLD = 0.02
 TOP_K = 5000
 NMS_THRESHOLD = 0.4
 KEEP_TOP_K = 750

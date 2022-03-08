@@ -116,7 +116,7 @@ async function recognizeFace(formData) {
         try {
             $.ajax({
                 method: "POST",
-                url: "http://" + hostname + ":5000/match/v1",
+                url: "https://" + hostname + ":5000/match/v1",
                 data: formData,
                 processData: false,
                 contentType: false,
@@ -141,8 +141,10 @@ async function recognizeFace(formData) {
 
                     if (matchScore >= 0.65) {
                         $("#matchStatus").html("Matched");
+                        showMessage("Matched! Score: " + score);
                     } else {
                         $("#matchStatus").html("Not Matched");
+                        showMessage("Not Matched! Score: " + score);
                     }
                     resolve(true);
                 },
@@ -177,6 +179,8 @@ async function captureFrame() {
     // If process frame success
     if (await processFrame(frame, frameBGR)) {
         await matchBlob();
+    } else {
+        showMessage("Bad face!");
     }
 
     // Loop this function.
@@ -190,15 +194,34 @@ async function captureFrame() {
 //!
 async function processFrame(frame, frameBGR) {
     try {
-
         // Show hide
         $("#progress").show();
+        // clone original frame
+        let oFrame = frame.clone();
+
 
         var faces = detectFaces(frameBGR);
         if (faces.length <= 0) {
             console.log("No face detected!");
+            showMessage("No face detected from client!");
             return false;
         }
+
+        var faces = detectTfFaces(frame);
+        if (faces.length <= 0) {
+            console.log("No face detected!");
+            showMessage("No face detected from client!");
+            return false;
+        }
+
+        // stable detection
+        // var faces = detectFaces(frameBGR);
+        // if (faces.length <= 0) {
+        //     console.log("No face detected!");
+        //     showMessage("No face detected from client!");
+        //     return false;
+        // }
+        // stable detection
 
 
 
@@ -242,14 +265,17 @@ async function processFrame(frame, frameBGR) {
             rightLip: { x: rightLip[0], y: rightLip[1] }
         }
 
-        estimatePose(lm, dst);
-
         cv.circle(frame, { x: xp + nose[0] * rec.width, y: yp + nose[1] * rec.height }, 3, [0, 255, 0, 255], -1); // nose
         cv.circle(frame, { x: xp + leftEye[0] * rec.width, y: yp + leftEye[1] * rec.height }, 3, [0, 255, 0, 255], -1); // nose
         cv.circle(frame, { x: xp + rightEye[0] * rec.width, y: yp + rightEye[1] * rec.height }, 3, [0, 255, 0, 255], -1); // nose
         cv.circle(frame, { x: xp + leftLip[0] * rec.width, y: yp + leftLip[1] * rec.height }, 3, [255, 0, 0, 255], -1); // nose
         cv.circle(frame, { x: xp + rightLip[0] * rec.width, y: yp + rightLip[1] * rec.height }, 3, [0, 255, 0, 255], -1); // nose
         cv.circle(frame, { x: xp + chick[0] * rec.width, y: yp + chick[1] * rec.height }, 3, [0, 255, 0, 255], -1); // nose
+
+
+        if (!estimatePose(lm, dst)) {
+            return;
+        }
 
 
         // let dst = new cv.Mat();
@@ -270,9 +296,6 @@ async function processFrame(frame, frameBGR) {
         //     // break;
         // }
 
-        // clone original frame
-        let oFrame = frame.clone();
-
         faces.forEach(function (rect) {
             // draw over processed frame
             cv.rectangle(frame,
@@ -282,10 +305,11 @@ async function processFrame(frame, frameBGR) {
                 2);
         });
 
-        cv.imshow(output, frame);
+        // cv.imshow(output, frame);
 
         // If more than 1 face detected then return
         if (faces.length !== 1) {
+            showMessage("Face orientation issue from client!");
             return false;
         }
 
@@ -306,6 +330,8 @@ async function processFrame(frame, frameBGR) {
     } catch (exp) {
         console.log(exp);
     } finally {
+        cv.imshow(output, frame);
+
         frame.delete();
         frameBGR.delete();
         $("#progress").hide();
@@ -509,62 +535,76 @@ function estimatePose(landmarks, im) {
             let y = Math.atan2(-R.data64F[6], sq);
             let z = Math.atan2(R.data64F[3], R.data64F[0]);
             console.log("Rotation (x, y, z): ", x, y, z);
+            let rollF = (z / Math.PI) * 180;
+            let pitchF = (x / Math.PI) * 180;
+            let yawF = (y / Math.PI) * 180;
+
+            pitchF = Math.asin(Math.sin(pitchF * Math.PI / 180)) * 180 / Math.PI;
+            rollF = -Math.asin(Math.sin(rollF * Math.PI / 180)) * 180 / Math.PI;
+            yawF = Math.asin(Math.sin(yawF * Math.PI / 180)) * 180 / Math.PI;
+
             console.log("Rotation (x, y, z) degree: ", (x / Math.PI) * 180, (y / Math.PI) * 180, (z / Math.PI) * 180);
+            console.log('Roll: ', rollF, 'Pitch: ', pitchF, 'Yaw: ', yawF);
             // end test with formula
 
 
 
-
-            let proj = cv.matFromArray(3, 4, cv.CV_64FC1, [
-                R.data64F[0],
-                R.data64F[1],
-                R.data64F[2],
-                tvec.data64F[0],
-                R.data64F[3],
-                R.data64F[4],
-                R.data64F[5],
-                tvec.data64F[1],
-                R.data64F[6],
-                R.data64F[7],
-                R.data64F[8],
-                tvec.data64F[2]
-            ]);
-            console.log(proj.data64F);
-
-
+            // [pose estimation using opencv]
+            // let proj = cv.matFromArray(3, 4, cv.CV_64FC1, [
+            //     R.data64F[0],
+            //     R.data64F[1],
+            //     R.data64F[2],
+            //     tvec.data64F[0],
+            //     R.data64F[3],
+            //     R.data64F[4],
+            //     R.data64F[5],
+            //     tvec.data64F[1],
+            //     R.data64F[6],
+            //     R.data64F[7],
+            //     R.data64F[8],
+            //     tvec.data64F[2]
+            // ]);
+            // console.log(proj.data64F);
 
 
-            // https://blog-mahoroi-com.translate.goog/posts/2020/05/browser-head-pose-estimation/?_x_tr_sl=ja&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=sc
-            // https://justadudewhohacks.github.io/opencv4nodejs/docs/Mat#decomposeProjectionMatrix
-            let cmat = new cv.Mat();
-            let rotmat = new cv.Mat();
-            let travec = new cv.Mat();
-            let rotmatX = new cv.Mat();
-            let rotmatY = new cv.Mat();
-            let rotmatZ = new cv.Mat();
-            let eulerAngles = new cv.Mat();
-            cv.decomposeProjectionMatrix(proj,
-                cmat,
-                rotmat,
-                travec,
-                rotmatX,
-                rotmatY,
-                rotmatZ,
-                eulerAngles);
-
-            let pitch = eulerAngles.data64F[0];
-            let yaw = eulerAngles.data64F[1];
-            let roll = eulerAngles.data64F[2];
-
-            console.log('Roll: ', roll, 'Pitch: ', pitch, 'Yaw: ', yaw);
-            console.log('Roll: ', roll * Math.PI / 180, 'Pitch: ', pitch * Math.PI / 180, 'Yaw: ', yaw * Math.PI / 180);
 
 
-            pitch = Math.asin(Math.sin(pitch * Math.PI / 180)) * 180 / Math.PI;
-            roll = -Math.asin(Math.sin(roll * Math.PI / 180)) * 180 / Math.PI;
-            yaw = Math.asin(Math.sin(yaw * Math.PI / 180)) * 180 / Math.PI;
+            // // https://blog-mahoroi-com.translate.goog/posts/2020/05/browser-head-pose-estimation/?_x_tr_sl=ja&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=sc
+            // // https://justadudewhohacks.github.io/opencv4nodejs/docs/Mat#decomposeProjectionMatrix
+            // let cmat = new cv.Mat();
+            // let rotmat = new cv.Mat();
+            // let travec = new cv.Mat();
+            // let rotmatX = new cv.Mat();
+            // let rotmatY = new cv.Mat();
+            // let rotmatZ = new cv.Mat();
+            // let eulerAngles = new cv.Mat();
+            // cv.decomposeProjectionMatrix(proj,
+            //     cmat,
+            //     rotmat,
+            //     travec,
+            //     rotmatX,
+            //     rotmatY,
+            //     rotmatZ,
+            //     eulerAngles);
 
-            console.log('Roll: ', roll, 'Pitch: ', pitch, 'Yaw: ', yaw);
+            // let pitch = eulerAngles.data64F[0];
+            // let yaw = eulerAngles.data64F[1];
+            // let roll = eulerAngles.data64F[2];
+
+            // console.log('Roll: ', roll, 'Pitch: ', pitch, 'Yaw: ', yaw);
+            // console.log('Roll: ', roll * Math.PI / 180, 'Pitch: ', pitch * Math.PI / 180, 'Yaw: ', yaw * Math.PI / 180);
+
+
+            // pitch = Math.asin(Math.sin(pitch * Math.PI / 180)) * 180 / Math.PI;
+            // roll = -Math.asin(Math.sin(roll * Math.PI / 180)) * 180 / Math.PI;
+            // yaw = Math.asin(Math.sin(yaw * Math.PI / 180)) * 180 / Math.PI;
+
+            // console.log('Roll: ', roll, 'Pitch: ', pitch, 'Yaw: ', yaw);
+            // [pose estimation using opencv]
+
+
+
+
             // console.log('Roll: ', roll * Math.PI / 180, 'Pitch: ', pitch * Math.PI / 180, 'Yaw: ', yaw * Math.PI / 180);
 
             // let sq = Math.sqrt((tvec.data64F[7] * tvec.data64F[7]) + (tvec.data64F[8] * tvec.data64F[8]))
@@ -574,10 +614,13 @@ function estimatePose(landmarks, im) {
             // console.log("Rotation (x, y, z): ", x, y, z);
 
             // console.log("Rotation (x, y, z) degree: ", (x / Math.PI) * 180, (y / Math.PI) * 180, (z / Math.PI) * 180);
+            return Math.abs(rollF) <= 10 && Math.abs(pitchF) <= 10 && Math.abs(yawF) <= 10;
         }
     } catch (err) {
         console.log(err);
     }
+
+    return false;
 }
 
 

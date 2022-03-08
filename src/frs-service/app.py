@@ -21,7 +21,8 @@ CORS(app)
 
 logger = log_utils.LogUtils().get_logger(__name__)
 
-DETECTOR_MODEL_PATH = os.path.abspath('models/mobilenet0.25_Final.pth')
+# DETECTOR_MODEL_PATH = os.path.abspath('models/mobilenet0.25_Final.pth')
+DETECTOR_MODEL_PATH = os.path.abspath('models/Resnet50_Final.pth')
 DETECTOR_MODEL_TAR_PATH = os.path.abspath('models/mobilenetV1X0.25_pretrain.tar')
 RECOGNIZER_MODEL_PATH = os.path.abspath('models/backbone-r100m.pth')
 
@@ -31,7 +32,7 @@ dnn_config = {
     'recognizer_model_path': RECOGNIZER_MODEL_PATH,
     'recognizer_model_architecture': 'r100'
 }
-face_handler = FaceHandler(detector_network='mobile0.25',
+face_handler = FaceHandler(detector_network='resnet50',
                            dnn_config=dnn_config,
                            debug=False)
 
@@ -184,13 +185,15 @@ def match_v3():
         frame = numpy.frombuffer(photo_data, dtype=numpy.uint8)
         frame = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED)
         result = face_handler.extract_embeddings(frame)
-        print(result)
+        # print(result)
 
         if not result:
             return Response('FRS engine error!', status=500)
 
         if result['status'] == 1:
-            cv2.imwrite(f'logs/{datetime.datetime.now()}.jpg', frame)
+            img_file = f'{datetime.datetime.now().timestamp()}.jpg'
+            logger.info(f'No face detected! writing file to: {img_file}')
+            cv2.imwrite(f'logs/{img_file}', frame)
             return Response('No face detected!', status=400)
         elif result['status'] == 2:
             return Response('Face orientation issue!', status=400)
@@ -213,6 +216,7 @@ def match_v3():
 
 def main():
     app.run(host='0.0.0.0', port=os.getenv('FR_PORT', 5000), ssl_context='adhoc', debug=True)
+    # app.run(host='0.0.0.0', port=os.getenv('FR_PORT', 5000), debug=True)
 
 
 if __name__ == "__main__":

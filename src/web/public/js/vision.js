@@ -7,6 +7,9 @@ const weightsDownloadPath = '/models/res10_300x300_ssd_iter_140000_fp16.caffemod
 const maskProtoDownloadPath = '/models/landmark_deploy.prototxt';
 const maskWeightsDownloadPath = '/models/VanFace.caffemodel';
 
+const detectionProtoTfDownloadPath = '/models/detections/model.json';
+const detectionWeightTfDownloadPath = '/models/detections/group1-shard1of1.bin';
+
 const maskProtoTfDownloadPath = '/models/model.json';
 const maskWeightsTfDownloadPath = '/models/group1-shard1of1.bin';
 
@@ -29,6 +32,7 @@ let netDet = undefined;
 let netRecogn = undefined;
 let netMask = undefined;
 let netLandmarkTf = undefined;
+let netDetectionTf = undefined;
 let camera = undefined;
 
 let hostname = location.hostname;
@@ -231,6 +235,57 @@ function detectFaces(img) {
         out.delete();
     } catch (ex) {
         console.log("Error when apply face detection: ", ex);
+    }
+    return faces;
+};
+//! [Run face detection model]
+
+//! [Run face detection model]
+function detectTfFaces(img) {
+    var faces = [];
+
+    try {
+        let detectionResults = tf.tidy(() => {
+
+
+            let scale = Math.min(128 / img.rows, 128 / img.cols);
+            let nh = parseInt(scale * img.rows);
+            let nw = parseInt(scale * img.cols);
+            let imgScaled = new cv.Mat();
+            cv.resize(img, imgScaled, new cv.Size(nw, nh));
+
+
+
+            let frameRGB = new cv.Mat(img.cols, img.rows, cv.CV_8UC3);
+            cv.cvtColor(imgScaled, frameRGB, cv.COLOR_BGRA2RGB);
+
+
+            let tensor = tf.tensor(frameRGB.data, [frameRGB.rows, frameRGB.cols, frameRGB.channels()]);
+            let example = tf.image.resizeBilinear(tensor, [128, 128]);
+            example = tf.mul(tf.sub(tf.div(example, 255), 0.5), 2);
+
+            // let normalizedImage = tf.mul(tf.sub(tf.div(example, 255), 0.5), 2);
+
+            example = example.expandDims(0).toFloat();//.div(tf.scalar(127.5 - 1));
+            let prediction = netDetectionTf.predict(example);
+            console.log(prediction.dataSync());
+            let pred = tf.squeeze(prediction.dataSync());
+            console.log(pred);
+
+            // let logits = Array.from(prediction.dataSync());
+            // logits = logits.slice(0, logits.length - 1);
+
+            let lmarks = [];
+
+            return lmarks;
+        });
+
+        // console.log(detectionResults);
+        return detectionResults;
+
+    } catch (ex) {
+        console.log("Error when apply face mask detection");
+        console.log(ex);
     }
     return faces;
 };
@@ -572,6 +627,25 @@ async function initializeDnn() {
             await netLandmarkTf.save('indexeddb://tf-mask-model');
         } else {
             netLandmarkTf = await tf.loadGraphModel('indexeddb://tf-mask-model');
+        }
+
+
+        // tf detection model
+        let tfDetectionInfo = await getTfModelByName('tensorflowjs', dbVersion, 'model_info_store', 'tf-detection-model');
+        console.log("tf detection info: ", tfDetectionInfo);
+
+        let tfDetectionData = await getTfModelByName('tensorflowjs', dbVersion, 'models_store', 'tf-detection-model');
+        console.log("tf detection data: ", tfDetectionData);
+
+
+        if (tfDetectionInfo === undefined || tfDetectionData === undefined) {
+            console.log("downloading tf detection models");
+            netDetectionTf = await tf.loadGraphModel(detectionProtoTfDownloadPath);
+            // netLandmarkTf = await tf.loadLayersModel('/models/face_mesh.tflite');
+            console.log("face detection net loaded...");
+            await netDetectionTf.save('indexeddb://tf-detection-model');
+        } else {
+            netDetectionTf = await tf.loadGraphModel('indexeddb://tf-detection-model');
         }
 
         // console.log('face mask tf model loaded...');
