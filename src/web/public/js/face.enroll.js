@@ -12,14 +12,23 @@ let enrollInputElement = undefined;
 let toast = undefined;
 
 function onDocumentReady() {
-    $(document).ready(function () {
+    $(document).ready(async function () {
+
+        // Update elements
+        output = document.getElementById('output');
+        camera_output = document.getElementById('camera_output');
+        faceCanvas = document.getElementById("face");
+        console.log("opencv is ready...");
+
+        // Create a camera object.
+        camera = document.createElement("video");
+        // update elements
+
         //! [initialize variables based on dom]
         enrollInputElement = document.getElementById('enrollImage');
         enrollImageElement = document.getElementById('enrollImageSrc');
         //! [initialize variables based on dom]
 
-        // Show hide
-        $("#progressEnroll").hide();
 
         // Toast
         var toastElList = [].slice.call(document.querySelectorAll('.toast'))
@@ -47,6 +56,15 @@ function onDocumentReady() {
             onEnrollWebcam();
         });
         //! [enroll webcam button event]
+
+
+        // load opencv if exists inside indexeddb
+        await initializeOpenCV();
+
+        showMessage("Dnn models loaded...");
+
+        // Show hide
+        $("#progressEnroll").hide();
     });
 }
 
@@ -79,7 +97,7 @@ async function enrollFace(formData) {
         console.log("ok...enrollFace");
         return $.ajax({
             method: "POST",
-            url: "http://localhost:5000/enroll/v1",
+            url: "http://" + hostname + ":5000/enroll/v1",
             data: formData,
             processData: false,
             contentType: false,
@@ -117,9 +135,9 @@ async function processImageToEnroll(frame, frameBGR) {
 
         let oFrame = frame.clone();
         faces.forEach(function (rect) {
-            cv.rectangle(frame, 
-                { x: rect.x, y: rect.y }, 
-                { x: rect.x + rect.width, y: rect.y + rect.height }, 
+            cv.rectangle(frame,
+                { x: rect.x, y: rect.y },
+                { x: rect.x + rect.width, y: rect.y + rect.height },
                 [0, 255, 0, 255],
                 2);
         });
@@ -134,8 +152,8 @@ async function processImageToEnroll(frame, frameBGR) {
 
         // Get detected face and estimate rect to crop
         let rect = faces[0];
-        let xTh = rect.width / 5;
-        let yTh = rect.height / 5;
+        let xTh = rect.width / 3;
+        let yTh = rect.height / 3;
         let x = Math.max(rect.x - xTh, 0);
         let y = Math.max(rect.y - yTh, 0);
         let x1 = Math.min(rect.x + rect.width + xTh, frame.cols);

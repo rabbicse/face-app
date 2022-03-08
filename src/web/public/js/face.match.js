@@ -112,44 +112,52 @@ function showMessage(msg) {
 
 //! [Recognize face]
 async function recognizeFace(formData) {
-    try {
-        return $.ajax({
-            method: "POST",
-            url: "http://localhost:5000/match/v1",
-            data: formData,
-            processData: false,
-            contentType: false,
-            timeout: 5000,
-            mimeType: "multipart/form-data",
-            success: function (result) {
-                console.log(result);
-                var parsedJson = $.parseJSON(result);
-                var matchScore = parsedJson["score"];
+    return new Promise(function (resolve) {
+        try {
+            $.ajax({
+                method: "POST",
+                url: "http://" + hostname + ":5000/match/v1",
+                data: formData,
+                processData: false,
+                contentType: false,
+                async: true,
+                timeout: 3000,
+                mimeType: "multipart/form-data",
+                success: function (result) {
+                    console.log(result);
+                    var parsedJson = $.parseJSON(result);
+                    var matchScore = parsedJson["score"];
 
-                if (matchScore < 0) {
-                    showMessage("Please look at the camera...");
-                    $("#score").html("Undefined");
-                    $("#matchStatus").html("Not Matched");
-                    return;
+                    if (matchScore < 0) {
+                        showMessage("Please look at the camera...");
+                        $("#score").html("Undefined");
+                        $("#matchStatus").html("Not Matched");
+                        resolve(false);
+                        return;
+                    }
+
+                    var score = (parseFloat(matchScore) * 100).toFixed(2) + '%';
+                    $("#score").html(score);
+
+                    if (matchScore >= 0.65) {
+                        $("#matchStatus").html("Matched");
+                    } else {
+                        $("#matchStatus").html("Not Matched");
+                    }
+                    resolve(true);
+                },
+                error: function (err) {
+                    console.log("Error when call service...");
+                    console.log(err);
+                    var error = err.responseText;
+                    showMessage(error);
+                    resolve(false);
                 }
-
-                var score = (parseFloat(matchScore) * 100).toFixed(2) + '%';
-                $("#score").html(score);
-
-                if (matchScore >= 0.65) {
-                    $("#matchStatus").html("Matched");
-                } else {
-                    $("#matchStatus").html("Not Matched");
-                }
-            },
-            error: function (err) {
-                console.log("Error...");
-                console.log(err);
-            }
-        });
-    } catch (e) {
-        console.log(e);
-    }
+            });
+        } catch (e) {
+            console.log("Error when match face: ", e);
+        }
+    });
 }
 //! [Recognize face]
 
@@ -182,13 +190,15 @@ async function captureFrame() {
 //!
 async function processFrame(frame, frameBGR) {
     try {
+
+        // Show hide
+        $("#progress").show();
+
         var faces = detectFaces(frameBGR);
         if (faces.length <= 0) {
             console.log("No face detected!");
             return false;
         }
-
-
 
 
 
@@ -280,8 +290,8 @@ async function processFrame(frame, frameBGR) {
         }
 
         let rect = faces[0];
-        let xTh = rect.width / 5;
-        let yTh = rect.height / 5;
+        let xTh = rect.width / 3;
+        let yTh = rect.height / 3;
         let x = Math.max(rect.x - xTh, 0);
         let y = Math.max(rect.y - yTh, 0);
         let x1 = Math.min(rect.x + rect.width + xTh, frame.cols);
@@ -298,6 +308,7 @@ async function processFrame(frame, frameBGR) {
     } finally {
         frame.delete();
         frameBGR.delete();
+        $("#progress").hide();
     }
 
     return false;
@@ -592,7 +603,8 @@ async function matchBlob() {
         formData.append("data", JSON.stringify({ "name": name }));
 
         isRecognizing = true;
-        await recognizeFace(formData);
+        let result = await recognizeFace(formData);
+        console.log("Response: ", result);
         isRecognizing = false;
         $("#progress").hide();
     } finally {

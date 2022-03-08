@@ -20,13 +20,18 @@ const maskWeightsPath = 'face_mask_detection.caffemodel';
 const opencvDownloadPath = '/js/opencv.js';
 const opencvPath = 'opencv.js';
 
+const tfDownloadPath = '/js/tf.min.js';
+const tfPath = 'tf.min.js';
+
 
 const FPS = 15;  // Target number of frames processed per second.
 let netDet = undefined;
 let netRecogn = undefined;
 let netMask = undefined;
-let netMaskTf = undefined;
+let netLandmarkTf = undefined;
 let camera = undefined;
+
+let hostname = location.hostname;
 
 // IndexedDB
 let indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.OIndexedDB || window.msIndexedDB;
@@ -68,6 +73,21 @@ function createDbConnection(dbName, dbVersion) {
     });
 }
 
+function createTfDbConnection(dbName, dbVersion) {
+    return new Promise(function (resolve, reject) {
+        const request = indexedDB.open(dbName, dbVersion);
+        request.onsuccess = (event) => {
+            var idb = event.target.result;
+            resolve(idb);
+        };
+
+        request.onerror = (e) => {
+            showMessage("Unable to access IndexedDB: " + e.target.errorCode);
+            reject(undefined);
+        };
+    });
+}
+
 async function insertModel(dbName, dbVersion, storeName, model) {
     let db = await createDbConnection(dbName, dbVersion);
     return new Promise(function (resolve) {
@@ -99,7 +119,7 @@ async function insertModel(dbName, dbVersion, storeName, model) {
 }
 
 
-async function getModelByName(dbName, dbVersion, storeName, name) {
+async function getModelByName(dbName, dbVersion, storeName, indexName, name) {
     // create db connection
     let db = await createDbConnection(dbName, dbVersion);
 
@@ -111,7 +131,7 @@ async function getModelByName(dbName, dbVersion, storeName, name) {
         const store = txn.objectStore(storeName);
 
         // get the index from the Object Store
-        const index = store.index('model_name');
+        const index = store.index(indexName);
         // query by indexes
         let query = index.get(name);
 
@@ -132,6 +152,51 @@ async function getModelByName(dbName, dbVersion, storeName, name) {
     });
 }
 
+
+async function getTfModelByName(dbName, dbVersion, storeName, name) {
+    // create db connection
+    let databases = await indexedDB.databases();
+    let dbData = databases.find(d => d.name == dbName);
+    if (dbData === undefined) return undefined;
+
+    let db = await createTfDbConnection(dbName, dbVersion);
+    // console.log(db);
+
+    return new Promise(function (resolve) {
+        let stores = db.objectStoreNames;
+        console.log(stores);
+
+        if (stores.length === 0 || !stores.contains(storeName)) {
+            console.log("no store...");
+            resolve(undefined);
+        }
+
+        // create transaction
+        const txn = db.transaction(storeName, 'readonly');
+        console.log(txn);
+
+        // create object store by store name
+        const store = txn.objectStore(storeName);
+
+        // get the index from the Object Store
+        let query = store.get(name);
+
+        // return the result object on success
+        query.onsuccess = (event) => {
+            // console.log(query.result); // result objects
+            resolve(query.result);
+        };
+
+        query.onerror = (event) => {
+            console.log(event.target.errorCode);
+        }
+
+        // close the database connection
+        txn.oncomplete = function () {
+            db.close();
+        };
+    });
+}
 
 //! [Run face detection model]
 function detectFaces(img) {
@@ -165,7 +230,7 @@ function detectFaces(img) {
         blob.delete();
         out.delete();
     } catch (ex) {
-        console.log("Error when apply face detection");
+        console.log("Error when apply face detection: ", ex);
     }
     return faces;
 };
@@ -286,7 +351,7 @@ function detectFaceLandmark(img) {
             let tensor = tf.tensor(frameRGB.data, [frameRGB.rows, frameRGB.cols, frameRGB.channels()]);
             let example = tf.image.resizeBilinear(tensor, [192, 192]);
             example = example.expandDims(0).toFloat().div(tf.scalar(255));
-            let prediction = netMaskTf.predict(example);
+            let prediction = netLandmarkTf.predict(example);
             let logits = Array.from(prediction.dataSync());
             logits = logits.slice(0, logits.length - 1);
 
@@ -342,15 +407,40 @@ function getContactById(db, id) {
 //! [Initialize OpenCV]
 async function initializeOpenCV() {
     try {
-        // check if opencv key exists
-        let opencvData = await getModelByName(dbName, dbVersion, storeName, opencvPath);
-        console.log("opencv data: ", opencvData);
 
+        // check if tensorflow key exists
+        let tfData = await getModelByName(dbName, dbVersion, storeName, 'model_name', tfPath);
+        // Download proto file for caffe model
+        if (tfData === undefined) {
+            let response = await downloadTextFileAsync(tfPath, tfDownloadPath);
+
+            if (response === undefined) {
+                showMessage("tf download failed!");
+                return;
+            }
+
+            // console.log("opencv downloaded...");
+            document.getElementById("tensorflow").innerHTML = response;
+
+        } else {
+            document.getElementById("tensorflow").innerHTML = tfData['model'];
+        }
+
+
+
+        // check if opencv key exists
+        let opencvData = await getModelByName(dbName, dbVersion, storeName, 'model_name', opencvPath);
         // Download proto file for caffe model
         if (opencvData === undefined) {
-            await downloadTextFileAsync(opencvPath, opencvDownloadPath);
+            let response = await downloadTextFileAsync(opencvPath, opencvDownloadPath);
+
+            if (response === undefined) {
+                showMessage("opencv download failed!");
+                return;
+            }
+
             // console.log("opencv downloaded...");
-            document.getElementById("script").innerHTML = opencvData['model'];
+            document.getElementById("script").innerHTML = response;
 
             await initializeDnn();
 
@@ -373,7 +463,7 @@ async function initializeDnn() {
 
         // var db = await createDbConnection(dbName, dbVersion);
         // console.log(db);
-        let faceDetectionProtoData = await getModelByName(dbName, dbVersion, storeName, protoPath);
+        let faceDetectionProtoData = await getModelByName(dbName, dbVersion, storeName, 'model_name', protoPath);
         console.log("face detection proto data: ", faceDetectionProtoData);
 
         // Download proto file for caffe model
@@ -384,7 +474,7 @@ async function initializeDnn() {
             saveDnnToFile(faceDetectionProtoData['model_name'], new Uint8Array(faceDetectionProtoData['model']));
         }
 
-        let faceDetectionWeightData = await getModelByName(dbName, dbVersion, storeName, weightsPath);
+        let faceDetectionWeightData = await getModelByName(dbName, dbVersion, storeName, 'model_name', weightsPath);
         console.log("face detection caffe model data: ", faceDetectionWeightData);
 
         if (faceDetectionWeightData === undefined) {
@@ -430,41 +520,59 @@ async function initializeDnn() {
 
         // netMask = cv.readNetFromCaffe(maskMrotoPath, maskWeightsPath);
 
-        // todo:
-        let faceMaskProtoData = await getModelByName(dbName, dbVersion, storeName, maskMrotoPath);
-        console.log("face mask proto data: ", faceMaskProtoData);
-        if (faceMaskProtoData === undefined) {
-            await downloadFileAsync(maskMrotoPath, maskProtoDownloadPath, true);
-            console.log("proto downloaded...");
-        } else {
-            saveDnnToFile(faceMaskProtoData['model_name'], new Uint8Array(faceMaskProtoData['model']));
-        }
-        // await downloadFileAsync(maskMrotoPath, maskProtoDownloadPath, true);
+        // TODO: vanface
+        // let faceMaskProtoData = await getModelByName(dbName, dbVersion, storeName, 'model_name', maskMrotoPath);
+        // console.log("face mask proto data: ", faceMaskProtoData);
+        // if (faceMaskProtoData === undefined) {
+        //     await downloadFileAsync(maskMrotoPath, maskProtoDownloadPath, true);
+        //     console.log("proto downloaded...");
+        // } else {
+        //     saveDnnToFile(faceMaskProtoData['model_name'], new Uint8Array(faceMaskProtoData['model']));
+        // }
+        // // await downloadFileAsync(maskMrotoPath, maskProtoDownloadPath, true);
 
-        let faceMaskWeightsData = await getModelByName(dbName, dbVersion, storeName, maskMrotoPath);
-        console.log("face mask proto data: ", faceMaskWeightsData);
-        if (faceMaskWeightsData === undefined) {
-            await downloadFileAsync(maskWeightsPath, maskWeightsDownloadPath, true);
-            console.log("caffee downloaded...");
-        } else {
-            saveDnnToFile(faceMaskWeightsData['model_name'], new Uint8Array(faceMaskWeightsData['model']));
-        }
-        // await downloadFileAsync(maskWeightsPath, maskWeightsDownloadPath, true);
+        // let faceMaskWeightsData = await getModelByName(dbName, dbVersion, storeName, 'model_name', maskWeightsPath);
+        // console.log("face mask proto data: ", faceMaskWeightsData);
+        // if (faceMaskWeightsData === undefined) {
+        //     await downloadFileAsync(maskWeightsPath, maskWeightsDownloadPath, true);
+        //     console.log("caffee downloaded...");
+        // } else {
+        //     saveDnnToFile(faceMaskWeightsData['model_name'], new Uint8Array(faceMaskWeightsData['model']));
+        // }
+        // // await downloadFileAsync(maskWeightsPath, maskWeightsDownloadPath, true);
 
-        netMask = cv.readNetFromCaffe(maskMrotoPath, maskWeightsPath);
-        // todo:
-        console.log("face mask net loaded...");
+        // netMask = cv.readNetFromCaffe(maskMrotoPath, maskWeightsPath);
+        // // todo:
+        // console.log("face mask net loaded...");
+        // TODO: vanface
 
         // const model = await tf.loadLayersModel('indexeddb://tf-mask-model');
         // console.log("idb model: ", model);
 
-        netMaskTf = await tf.loadGraphModel('/models/model.json');
-        // netMaskTf = await tf.loadLayersModel('/models/face_mesh.tflite');
-        console.log("face landmark net loaded...");
+        // netLandmarkTf = await tf.loadGraphModel('/models/model.json');
+        // // netLandmarkTf = await tf.loadLayersModel('/models/face_mesh.tflite');
+        // console.log("face landmark net loaded...");
 
-        // netMaskTf = await tf.loadLayersModel('indexeddb://tf-mask-model');
+        // netLandmarkTf = await tf.loadLayersModel('indexeddb://tf-mask-model');
 
-        // await netMaskTf.save('indexeddb://tf-mask-model');
+
+
+        let tfMaskInfo = await getTfModelByName('tensorflowjs', dbVersion, 'model_info_store', 'tf-mask-model');
+        console.log("tf mask info: ", tfMaskInfo);
+
+        let tfMaskData = await getTfModelByName('tensorflowjs', dbVersion, 'models_store', 'tf-mask-model');
+        console.log("tf mask data: ", tfMaskData);
+
+
+        if (tfMaskInfo === undefined || tfMaskData === undefined) {
+            console.log("downloading tf models");
+            netLandmarkTf = await tf.loadGraphModel('/models/model.json');
+            // netLandmarkTf = await tf.loadLayersModel('/models/face_mesh.tflite');
+            console.log("face landmark net loaded...");
+            await netLandmarkTf.save('indexeddb://tf-mask-model');
+        } else {
+            netLandmarkTf = await tf.loadGraphModel('indexeddb://tf-mask-model');
+        }
 
         // console.log('face mask tf model loaded...');
 
@@ -477,61 +585,72 @@ async function initializeDnn() {
 
 //! [Download file from http to browser path]
 async function downloadFileAsync(path, uri, saveDnn) {
-    try {
-        return $.ajax({
-            method: "GET",
-            xhrFields: {
-                responseType: 'arraybuffer'
-            },
-            url: uri,
-            timeout: 0,
-            success: function (response) {
-                console.log("download success...");
+    return new Promise(function (resolve) {
+        try {
+            return $.ajax({
+                method: "GET",
+                xhrFields: {
+                    responseType: 'arraybuffer'
+                },
+                url: uri,
+                timeout: 0,
+                async: true,
+                success: function (response) {
+                    console.log("download success...");
 
-                if (saveDnn === true) {
-                    let data = new Uint8Array(response);
-                    // insert model to index db
-                    insertModel(dbName, dbVersion, storeName, { "model_name": path, "model": data });
-                    saveDnnToFile(path, data);
-                } else {
-                    console.log(response);
-                    let dta = new String(response);
-                    insertModel(dbName, dbVersion, storeName, { "model_name": path, "model": dta });
+                    if (saveDnn === true) {
+                        let data = new Uint8Array(response);
+                        // insert model to index db
+                        insertModel(dbName, dbVersion, storeName, { "model_name": path, "model": data });
+                        saveDnnToFile(path, data);
+                    } else {
+                        console.log(response);
+                        let dta = new String(response);
+                        insertModel(dbName, dbVersion, storeName, { "model_name": path, "model": dta });
+                    }
+
+                    resolve(true);
+                },
+                error: function (err) {
+                    console.log("Error when download file...", err);
+                    resolve(false);
                 }
-            },
-            error: function (err) {
-                console.log("Error when download file...", err);
-            }
-        });
-    } catch (ex) {
-        console.log(ex);
-    }
+            });
+        } catch (ex) {
+            console.log(ex);
+        }
+    });
 }
 //! [Download file from http to browser path]
 
 
 //! [Download file from http to browser path]
 async function downloadTextFileAsync(path, uri) {
-    try {
-        return $.ajax({
-            method: "GET",
-            dataType: "text",
-            url: uri,
-            timeout: 0,
-            success: function (response) {
-                console.log("download success...");
-                console.log(response);
-                // let text = String.fromCharCode.apply(null, data);
-                // console.log(text);
-                insertModel(dbName, dbVersion, storeName, { "model_name": path, "model": response });
-            },
-            error: function (err) {
-                console.log("Error when download file...", err);
-            }
-        });
-    } catch (ex) {
-        console.log(ex);
-    }
+    return new Promise(function (resolve) {
+        try {
+            $.ajax({
+                method: "GET",
+                dataType: "text",
+                url: uri,
+                timeout: 0,
+                async: true,
+                success: function (response) {
+                    console.log("download success...");
+                    // console.log(response);
+                    // let text = String.fromCharCode.apply(null, data);
+                    // console.log(text);
+                    insertModel(dbName, dbVersion, storeName, { "model_name": path, "model": response });
+                    resolve(response);
+                },
+                error: function (err) {
+                    console.log("Error when download file...", err);
+                    resolve(undefined);
+                }
+            });
+        } catch (ex) {
+            console.log(ex);
+        }
+    });
 }
 //! [Download file from http to browser path]
 
