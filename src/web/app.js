@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path')
 
 // set port
-const port = 3000
+const httpPort = 8081;
+const httpsPort = 3000;
 
 const app = express()
 
@@ -34,12 +35,6 @@ var options = {
   cert: cert
 };
 
-var server = https.createServer(options, app);
-
-server.listen(port, () => {
-  console.log("server starting on port : " + port)
-});
-
 app.get('/facemash', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/html/facemash.html'))
 })
@@ -49,6 +44,13 @@ app.get('/pose', (req, res) => {
 app.get('/landmark', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/html/face-lm.html'))
 })
-app.listen(3001, () => {
-  console.log(`Example app listening at http://localhost:${port}`)
+
+app.listen(httpPort, () => {
+  console.log(`Example app listening at http://localhost:${httpPort}`)
 })
+
+var server = https.createServer(options, app);
+
+server.listen(httpsPort, () => {
+  console.log(`Example app listening at https://localhost:${httpsPort}`)
+});
