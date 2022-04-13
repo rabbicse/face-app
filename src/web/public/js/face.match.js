@@ -162,7 +162,7 @@ async function recognizeFace(formData) {
     });
 }
 //! [Recognize face]
-
+let isOpenCvNetLoaded = false;
 //! [Define frames processing]
 async function captureFrame() {
     //! [Open a camera stream]
@@ -174,6 +174,9 @@ async function captureFrame() {
     cap.read(frame);  // Read a frame from camera
     cv.cvtColor(frame, frameBGR, cv.COLOR_RGBA2BGR);
 
+    if (!isOpenCvNetLoaded) {
+        isOpenCvNetLoaded = await initOpencvNet();
+    }
     var begin = Date.now();
 
     // If process frame success
@@ -194,6 +197,7 @@ async function captureFrame() {
 //!
 async function processFrame(frame, frameBGR) {
     try {
+        cv.imshow(output, frame);
         // Show hide
         $("#progress").show();
         // clone original frame
@@ -207,20 +211,20 @@ async function processFrame(frame, frameBGR) {
             return false;
         }
 
-        var faces = detectTfFaces(frame);
-        if (faces.length <= 0) {
-            console.log("No face detected!");
-            showMessage("No face detected from client!");
-            return false;
-        }
-
-        // stable detection
-        // var faces = detectFaces(frameBGR);
+        // var faces = detectTfFaces(frame);
         // if (faces.length <= 0) {
         //     console.log("No face detected!");
         //     showMessage("No face detected from client!");
         //     return false;
         // }
+
+        // stable detection
+        var faces = detectFaces(frameBGR);
+        if (faces.length <= 0) {
+            console.log("No face detected!");
+            showMessage("No face detected from client!");
+            return false;
+        }
         // stable detection
 
 

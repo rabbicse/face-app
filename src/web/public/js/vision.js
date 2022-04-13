@@ -156,12 +156,32 @@ async function getModelByName(dbName, dbVersion, storeName, indexName, name) {
     });
 }
 
+async function isDbExists(dbName) {
+    return new Promise(function (resolve) {
+        var dbExists = true;
+        var request = indexedDB.open(dbName);
+        request.onupgradeneeded = function (event) {
+            event.target.transaction.abort();
+            dbExists = false;
+            resolve(false);
+        };
+
+        request.onsuccess = (event) => {
+            resolve(dbExists);
+        };
+    });
+}
+
 
 async function getTfModelByName(dbName, dbVersion, storeName, name) {
+    let exists = await isDbExists(dbName);
+    console.log("Db exists: ", exists);
+    if(!exists) return undefined;
+
     // create db connection
-    let databases = await indexedDB.databases();
-    let dbData = databases.find(d => d.name == dbName);
-    if (dbData === undefined) return undefined;
+    // let databases = await indexedDB.databases();
+    // let dbData = databases.find(d => d.name == dbName);
+    // if (dbData === undefined) return undefined;
 
     let db = await createTfDbConnection(dbName, dbVersion);
     // console.log(db);
@@ -523,20 +543,20 @@ async function initializeDnn() {
 
         // Download proto file for caffe model
         if (faceDetectionProtoData === undefined) {
-            await downloadFileAsync(protoPath, protoDownloadPath, true);
-            console.log("proto downloaded...");
+            let protoDownloadStatus = await downloadFileAsync(protoPath, protoDownloadPath, true);
+            console.log("Proto downloaded status: ", protoDownloadStatus);
         } else {
-            saveDnnToFile(faceDetectionProtoData['model_name'], new Uint8Array(faceDetectionProtoData['model']));
+            saveDnnToFile(faceDetectionProtoData['model_name'], new Int8Array(faceDetectionProtoData['model']));
         }
 
         let faceDetectionWeightData = await getModelByName(dbName, dbVersion, storeName, 'model_name', weightsPath);
         console.log("face detection caffe model data: ", faceDetectionWeightData);
 
         if (faceDetectionWeightData === undefined) {
-            await downloadFileAsync(weightsPath, weightsDownloadPath, true);
-            console.log("caffemodel downloaded...");
+            let weightDownloadStatus = await downloadFileAsync(weightsPath, weightsDownloadPath, true);
+            console.log("Caffemodel downloaded status: ", weightDownloadStatus);
         } else {
-            saveDnnToFile(faceDetectionWeightData['model_name'], new Uint8Array(faceDetectionWeightData['model']));
+            saveDnnToFile(faceDetectionWeightData['model_name'], new Int8Array(faceDetectionWeightData['model']));
         }
 
         // let faceMaskDetectionProtoData = await getModelByName(dbName, dbVersion, storeName, 'model.json');
@@ -567,9 +587,13 @@ async function initializeDnn() {
 
         // console.log("caffemodel downloaded...");
 
-        await sleep(500);
-
-        netDet = cv.readNetFromCaffe('face_detector.prototxt', 'face_detector.caffemodel');
+        // await sleep(500);
+        // let pro = new Uint8Array(faceDetectionProtoData['model']);
+        // console.log(pro);
+        // let bin = new Uint8Array(faceDetectionWeightData['model']);
+        // console.log(bin);
+        // netDet = cv.readNetFromCaffe(cv.MatFromArray(pro), pro.length,
+        //                             bin, bin.length);
 
         console.log("face detection model loaded...");
 
@@ -631,22 +655,22 @@ async function initializeDnn() {
 
 
         // tf detection model
-        let tfDetectionInfo = await getTfModelByName('tensorflowjs', dbVersion, 'model_info_store', 'tf-detection-model');
-        console.log("tf detection info: ", tfDetectionInfo);
+        // let tfDetectionInfo = await getTfModelByName('tensorflowjs', dbVersion, 'model_info_store', 'tf-detection-model');
+        // console.log("tf detection info: ", tfDetectionInfo);
 
-        let tfDetectionData = await getTfModelByName('tensorflowjs', dbVersion, 'models_store', 'tf-detection-model');
-        console.log("tf detection data: ", tfDetectionData);
+        // let tfDetectionData = await getTfModelByName('tensorflowjs', dbVersion, 'models_store', 'tf-detection-model');
+        // console.log("tf detection data: ", tfDetectionData);
 
 
-        if (tfDetectionInfo === undefined || tfDetectionData === undefined) {
-            console.log("downloading tf detection models");
-            netDetectionTf = await tf.loadGraphModel(detectionProtoTfDownloadPath);
-            // netLandmarkTf = await tf.loadLayersModel('/models/face_mesh.tflite');
-            console.log("face detection net loaded...");
-            await netDetectionTf.save('indexeddb://tf-detection-model');
-        } else {
-            netDetectionTf = await tf.loadGraphModel('indexeddb://tf-detection-model');
-        }
+        // if (tfDetectionInfo === undefined || tfDetectionData === undefined) {
+        //     console.log("downloading tf detection models");
+        //     netDetectionTf = await tf.loadGraphModel(detectionProtoTfDownloadPath);
+        //     // netLandmarkTf = await tf.loadLayersModel('/models/face_mesh.tflite');
+        //     console.log("face detection net loaded...");
+        //     await netDetectionTf.save('indexeddb://tf-detection-model');
+        // } else {
+        //     netDetectionTf = await tf.loadGraphModel('indexeddb://tf-detection-model');
+        // }
 
         // console.log('face mask tf model loaded...');
 
@@ -656,6 +680,18 @@ async function initializeDnn() {
     }
 }
 //! [Initialize DNN]
+
+async function initOpencvNet() {
+    return new Promise(function (resolve) {
+        try {
+            netDet = cv.readNetFromCaffe(protoPath, weightsPath);
+            resolve(true);
+        } catch (err) {
+            console.log("Error when opencv net. ", err);
+            resolve(false);
+        }
+    });
+}
 
 //! [Download file from http to browser path]
 async function downloadFileAsync(path, uri, saveDnn) {

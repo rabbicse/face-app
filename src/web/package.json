@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "@tensorflow/tfjs": "^3.10.0",
+    "async-mutex": "^0.3.2",
     "express": "^4.17.1",
     "https": "^1.0.0",
     "request": "^2.88.2"
