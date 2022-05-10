@@ -1,6 +1,9 @@
+const FPS = 15;  // Target number of frames processed per second.
+let camera = undefined;
+
 //! [Play webcam using userMedia]
-function processWebcamAsync(camera, callback) {
-    return new Promise(async function (resolve) {
+function processWebcamAsync(camera) {
+    return new Promise(async function (resolve, reject) {
         try {
             // Initialize variables to set track width and height
             let cameraFrameWidth = undefined;
@@ -44,14 +47,14 @@ function processWebcamAsync(camera, callback) {
 
             camera.onloadedmetadata = function (e) {
                 // start camera to stream frames from webcam 
-                camera.play();
+                // camera.play();
 
                 console.log("video played...");
 
                 // call callback function to process frame
-                setTimeout(callback, 1);
+                // setTimeout(callback, 1);
 
-                console.log("called callback...");
+                // console.log("called callback...");
 
                 resolve(true);
             };

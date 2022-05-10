@@ -9,6 +9,9 @@ const faceLandmarkTfWeightUrl = '/models/landmarks/group1-shard1of1.bin';
 const faceDetectionTfProtoUrl = '/models/detections/model.json';
 const faceDetectionTfWeightUrl = '/models/detections/group1-shard1of1.bin';
 
+const faceMaskDetectionTfProtoUrl = '/models/mask/model.json';
+const faceMaskDetectionTfWeightUrl = '/models/mask/group1-shard1of1.bin';
+
 const opencvUrl = '/js/opencv.js';
 const opencvKey = 'opencv.js';
 
@@ -18,14 +21,10 @@ const tensorflowKey = 'tf.min.js';
 
 
 let netDet = undefined;
-let netRecogn = undefined;
-let netMask = undefined;
+let netMaskTf = undefined;
 let netLandmarkTf = undefined;
 let netDetectionTf = undefined;
-let camera = undefined;
 
-const FPS = 15;  // Target number of frames processed per second.
-let hostname = location.hostname;
 
 //! [Run face detection model]
 function detectFacesAsync(img) {
@@ -72,17 +71,9 @@ function detectFacesAsync(img) {
 };
 //! [Run face detection model]
 
-const NUM_LANDMARKS = 6;
-
-
-var ANCHORS_CONFIG = {
-    'strides': [8, 16],
-    'anchors': [2, 6]
-};
-
 //! [Run face detection model]
 function detectFaceTfAsync(img) {
-    return new Promise(async function (resolve, reject) {
+    return new Promise(async function (resolve) {
         try {
             let anchorsData = generateAnchors(128, 128, ANCHORS_CONFIG);
             let anchors = tf.tensor(anchorsData);
@@ -207,301 +198,13 @@ function detectFaceTfAsync(img) {
             resolve(annotatedBoxes);
 
         } catch (ex) {
-            console.log("Error when apply face mask detection");
+            console.log("Error when apply face detection with tensorflow!");
             console.log(ex);
-            reject(ex);
+            resolve(undefined);
         }
     });
 };
 //! [Run face detection model]
-
-
-
-
-
-//! [dnn utils functions]
-function createBox(startEndTensor) {
-    return {
-        startEndTensor,
-        startPoint: tf.slice(startEndTensor, [0, 0], [-1, 2]),
-        endPoint: tf.slice(startEndTensor, [0, 2], [-1, 2])
-    }
-};
-
-function scaleBox(box, factors) {
-    const starts = tf.mul(box.startPoint, factors);
-    const ends = tf.mul(box.endPoint, factors);
-
-    const newCoordinates =
-        tf.concat2d([starts, ends], 1);
-
-    return createBox(newCoordinates);
-};
-
-function generateAnchors(width, height, outputSpec) {
-    const anchors = [];
-    for (let i = 0; i < outputSpec.strides.length; i++) {
-        const stride = outputSpec.strides[i];
-        const gridRows = Math.floor((height + stride - 1) / stride);
-        const gridCols = Math.floor((width + stride - 1) / stride);
-        const anchorsNum = outputSpec.anchors[i];
-
-        for (let gridY = 0; gridY < gridRows; gridY++) {
-            const anchorY = stride * (gridY + 0.5);
-
-            for (let gridX = 0; gridX < gridCols; gridX++) {
-                const anchorX = stride * (gridX + 0.5);
-                for (let n = 0; n < anchorsNum; n++) {
-                    anchors.push([anchorX, anchorY]);
-                }
-            }
-        }
-    }
-
-    return anchors;
-}
-
-
-function decodeBounds(boxOutputs, anchors, inputSize) {
-    var boxStarts = tf.slice(boxOutputs, [0, 1], [-1, 2]);
-    var centers = tf.add(boxStarts, anchors);
-    var boxSizes = tf.slice(boxOutputs, [0, 3], [-1, 2]);
-    var boxSizesNormalized = tf.div(boxSizes, inputSize);
-    var centersNormalized = tf.div(centers, inputSize);
-    var halfBoxSize = tf.div(boxSizesNormalized, 2);
-    var starts = tf.sub(centersNormalized, halfBoxSize);
-    var ends = tf.add(centersNormalized, halfBoxSize);
-    var startNormalized = tf.mul(starts, inputSize);
-    var endNormalized = tf.mul(ends, inputSize);
-    var concatAxis = 1;
-    return tf.concat2d([startNormalized, endNormalized], concatAxis);
-}
-
-
-
-function rectFromBox(box) {
-    return {
-        xCenter: box.x + box.width / 2,
-        yCenter: box.y + box.height / 2,
-        width: box.width,
-        height: box.height,
-    };
-}
-
-
-const config = {
-    rotation: 0,
-    rotationDegree: 0,
-    shiftX: 0,
-    shiftY: 0,
-    squareLong: true,
-    scaleX: 1.5,
-    scaleY: 1.5
-}
-
-// https://github.com/google/mediapipe/blob/master/mediapipe/calculators/util/rect_transformation_calculator.cc
-function transformNormalizedRect(rect, imageSize) {
-    let width = rect.width;
-    let height = rect.height;
-    let rotation = 0;//rect.rotation;
-
-    if (config.rotation != null || config.rotationDegree != null) {
-        rotation = computeNewRotation(rotation, config);
-    }
-
-    if (rotation === 0) {
-        rect.xCenter = rect.xCenter + width * config.shiftX;
-        rect.yCenter = rect.yCenter + height * config.shiftY;
-    } else {
-        const xShift =
-            (imageSize.width * width * config.shiftX * Math.cos(rotation) -
-                imageSize.height * height * config.shiftY * Math.sin(rotation)) /
-            imageSize.width;
-        const yShift =
-            (imageSize.width * width * config.shiftX * Math.sin(rotation) +
-                imageSize.height * height * config.shiftY * Math.cos(rotation)) /
-            imageSize.height;
-        rect.xCenter = rect.xCenter + xShift;
-        rect.yCenter = rect.yCenter + yShift;
-    }
-
-    if (config.squareLong) {
-        const longSide =
-            Math.max(width * imageSize.width, height * imageSize.height);
-        width = longSide / imageSize.width;
-        height = longSide / imageSize.height;
-    } else if (config.squareShort) {
-        const shortSide =
-            Math.min(width * imageSize.width, height * imageSize.height);
-        width = shortSide / imageSize.width;
-        height = shortSide / imageSize.height;
-    }
-    rect.width = width * config.scaleX;
-    rect.height = height * config.scaleY;
-
-    return rect;
-}
-
-function computeNewRotation(rotation, config) {
-    if (config.rotation != null) {
-        rotation += config.rotation;
-    } else if (config.rotationDegree != null) {
-        rotation += Math.PI * config.rotationDegree / 180;
-    }
-    return normalizeRadians(rotation);
-}
-
-function normalizeRadians(angle) {
-    return angle - 2 * Math.PI * Math.floor((angle + Math.PI) / (2 * Math.PI));
-}
-
-async function tensorsToLandmarks(landmarkTensor, config) {
-    flipHorizontally = false;
-    flipVertically = false;
-
-    const rawLandmarks = await landmarkTensor.data();
-    const numValues = rawLandmarks.length;
-    const numDimensions = numValues / 468;
-
-    const outputLandmarks = [];
-    for (let ld = 0; ld < 468; ++ld) {
-        const offset = ld * numDimensions;
-        const landmark = { x: 0, y: 0 };
-
-        if (flipHorizontally) {
-            landmark.x = config.inputImageWidth - rawLandmarks[offset];
-        } else {
-            landmark.x = rawLandmarks[offset];
-        }
-        if (numDimensions > 1) {
-            if (flipVertically) {
-                landmark.y = config.inputImageHeight - rawLandmarks[offset + 1];
-            } else {
-                landmark.y = rawLandmarks[offset + 1];
-            }
-        }
-        if (numDimensions > 2) {
-            landmark.z = rawLandmarks[offset + 2];
-        }
-        if (numDimensions > 3) {
-            landmark.score = applyActivation(
-                config.visibilityActivation, rawLandmarks[offset + 3]);
-        }
-        // presence is in rawLandmarks[offset + 4], we don't expose it.
-
-        outputLandmarks.push(landmark);
-    }
-
-    for (let i = 0; i < outputLandmarks.length; ++i) {
-        const landmark = outputLandmarks[i];
-        landmark.x = landmark.x / 192;
-        landmark.y = landmark.y / 192;
-        // Scale Z coordinate as X + allow additional uniform normalization.
-        landmark.z = landmark.z / 192 / 1;
-    }
-    return outputLandmarks;
-}
-
-function calculateLandmarkProjection(landmarks, inputRect) {
-    const outputLandmarks = [];
-    for (const landmark of landmarks) {
-        const x = landmark.x - 0.5;
-        const y = landmark.y - 0.5;
-        const angle = 0;
-        let newX = Math.cos(angle) * x - Math.sin(angle) * y;
-        let newY = Math.sin(angle) * x + Math.cos(angle) * y;
-
-        newX = newX * inputRect.width + inputRect.xCenter;
-        newY = newY * inputRect.height + inputRect.yCenter;
-
-        const newZ = landmark.z * inputRect.width;  // Scale Z coordinate as x.
-
-        const newLandmark = { ...landmark };
-
-        newLandmark.x = newX;
-        newLandmark.y = newY;
-        newLandmark.z = newZ;
-
-        outputLandmarks.push(newLandmark);
-    }
-
-    return outputLandmarks;
-}
-
-// //! [Run face detection model]
-// // https://creativetech.blog/home/face-landmarks-for-arcore-augmented-faces
-// function detectFaceLandmark(img) {
-//     return new Promise(function (resolve, reject) {
-//         try {
-
-//             // get scale factor
-//             let scaleFactor = tf.div([img.cols, img.rows], tf.tensor([192, 192]));
-
-//             // convert to RGB    
-//             let rgb = new cv.Mat(img.rows, img.cols, cv.CV_8UC3);
-//             cv.cvtColor(img, rgb, cv.COLOR_BGRA2RGB);
-
-//             let detectionResults = tf.tidy(() => {
-//                 // tensor from original image
-//                 let tensor = tf.tensor(rgb.data, [rgb.rows, rgb.cols, rgb.channels()]);
-
-//                 // resized tensor 
-//                 let inputTensor = tf.image.resizeBilinear(tensor, [192, 192]);
-
-//                 inputTensor = tf.mul(tf.sub(tf.div(inputTensor, 255), 0.5), 2);
-//                 inputTensor = inputTensor.expandDims(0).toFloat();
-
-//                 // example = example.expandDims(0).toFloat().div(tf.scalar(255));
-
-//                 // const outputs = ['output_faceflag'].concat(['output_mesh']);
-//                 let prediction = netLandmarkTf.predict(inputTensor);
-//                 let logits = Array.from(prediction.dataSync());
-//                 // logits = logits.slice(0, logits.length - 1);
-
-//                 let lmarks = [];
-//                 // for (i = 0; i < logits.length; i += 3) {
-//                 //     lmarks.push([logits[i] / 192, logits[i + 1] / 192, logits[i + 2] / 192]);
-//                 // }
-
-//                 // for (i = 0; i < logits.length; i += 3) {
-//                 //     lmarks.push([logits[i] / (192 * scaleFactor), 
-//                 //                 logits[i + 1] / (192 * scaleFactor), 
-//                 //                 logits[i + 2] / (192 * scaleFactor)]);
-//                 // }
-
-//                 for (i = 0; i < logits.length; i += 3) {
-
-//                     let landmarkPoint = tf.mul([logits[i], logits[i + 1]], scaleFactor).dataSync();
-
-//                     // let landmarkPoint = [(logits[i] / 192) * img.cols, (logits[i + 1] / 192) * img.rows];
-
-//                     // cv.circle(img, { x: landmarkPoint[0], y: landmarkPoint[1] }, 1, [0, 255, 0, 255], -1); // nose                    
-//                     cv.circle(img, { x: Math.floor(logits[i]), y: Math.floor(logits[i + 1]) }, 1, [0, 255, 0, 255], -1); // nose   
-//                     // console.log(landmarkPoint);
-
-//                     // lmarks.push([logits[i] * scaleFactor / img.cols, 
-//                     //             logits[i + 1] * scaleFactor / img.rows, 
-//                     //             logits[i + 2] * scaleFactor / img.rows]);
-
-//                     lmarks.push(landmarkPoint);
-//                 }
-
-//                 cv.imshow(faceMeshCanvas, img);
-
-//                 return lmarks;
-//             });
-
-
-//             resolve(detectionResults);
-
-//         } catch (ex) {
-//             console.log("Error when apply face mask detection");
-//             console.log(ex);
-//             reject(ex);
-//         }
-//     });
-// };
-// //! [Run face detection model]
 
 
 //! [Run face detection model]
@@ -526,7 +229,6 @@ async function detectFaceLandmark(img, normRect) {
                 const outputs = ['output_faceflag'].concat(['output_mesh']);
                 return netLandmarkTf.execute(inputTensor, outputs);
             });
-
 
             let faceFlagTensor = outputTensors[0];
             let landmarkTensors = outputTensors[1];
@@ -554,13 +256,39 @@ async function detectFaceLandmark(img, normRect) {
             resolve(finalLandmark);
 
         } catch (ex) {
-            console.log("Error when apply face mask detection");
+            console.log("Error when apply face landmark detection!");
             console.log(ex);
             reject(ex);
         }
     });
 };
 //! [Run face detection model]
+
+//! [face mask detection]
+async function detectMaskAsync(img) {
+    let anchors = anchorGenerator(featureMapSizes, anchorSizes, anchorRatios);
+    // convert to RGB    
+    let rgb = new cv.Mat(img.rows, img.cols, cv.CV_8UC3);
+    cv.cvtColor(img, rgb, cv.COLOR_BGRA2RGB);
+
+    const [rawBBoxes, rawConfidences] = tf.tidy(() => {
+        // tensor from original image
+        let tensor = tf.tensor(rgb.data, [rgb.rows, rgb.cols, rgb.channels()]);
+
+        // resized tensor 
+        let inputTensor = tf.image.resizeBilinear(tensor, [260, 260]);
+
+        inputTensor = tf.mul(tf.sub(tf.div(inputTensor, 255), 0.5), 2);
+        inputTensor = inputTensor.expandDims(0).toFloat();
+
+        const [rawBBoxes, rawConfidences] = netMaskTf.predict(inputTensor);
+        return [rawBBoxes, rawConfidences];
+    });
+
+    const bboxes = decodeBBox(anchors, tf.squeeze(rawBBoxes));
+    return await nonMaxSuppression(bboxes, tf.squeeze(rawConfidences), 0.5, 0.5, rgb.cols, rgb.rows);    
+};
+//! [face mask detection]
 
 
 //! [Initialize Cache]
@@ -609,9 +337,9 @@ async function initializeCache() {
                 insertModel(dbName, dbVersion, storeName, { "model_name": opencvKey, "model": response });
 
                 // console.log("opencv downloaded...");
-                document.getElementById("script").innerHTML = response;
+                document.getElementById("opencv").innerHTML = response;
             } else {
-                document.getElementById("script").innerHTML = opencvData['model'];
+                document.getElementById("opencv").innerHTML = opencvData['model'];
             }
 
             resolve(true);
@@ -631,12 +359,12 @@ async function initializeDnn() {
     return new Promise(async function (resolve, reject) {
         try {
             let faceDetectionProtoData = await getModelByName(dbName, dbVersion, storeName, 'model_name', faceDetectionCvProtoPath);
-            console.log("face detection proto data: ", faceDetectionProtoData);
+            // console.log("face detection proto data: ", faceDetectionProtoData);
 
             // Download proto file for caffe model
             if (faceDetectionProtoData === undefined) {
                 let protoDownloadStatus = await downloadFileAsync(faceDetectionCvProtoPath, faceDetectionCvProtoUrl, true);
-                console.log("Proto downloaded status: ", protoDownloadStatus);
+                // console.log("Proto downloaded status: ", protoDownloadStatus);
                 if (protoDownloadStatus !== undefined) {
                     saveDnnToFile(faceDetectionCvProtoPath, protoDownloadStatus);
                 }
@@ -645,11 +373,11 @@ async function initializeDnn() {
             }
 
             let faceDetectionWeightData = await getModelByName(dbName, dbVersion, storeName, 'model_name', faceDetectionCvWeightsPath);
-            console.log("face detection caffe model data: ", faceDetectionWeightData);
+            // console.log("face detection caffe model data: ", faceDetectionWeightData);
 
             if (faceDetectionWeightData === undefined) {
                 let weightDownloadStatus = await downloadFileAsync(faceDetectionCvWeightsPath, faceDetectionCvWeightUrl, true);
-                console.log("Caffemodel downloaded status: ", weightDownloadStatus);
+                // console.log("Caffemodel downloaded status: ", weightDownloadStatus);
                 if (weightDownloadStatus !== undefined) {
                     saveDnnToFile(faceDetectionCvWeightsPath, weightDownloadStatus);
                 }
@@ -658,7 +386,7 @@ async function initializeDnn() {
             }
 
 
-            console.log("face detection cv model loaded...");
+            // console.log("face detection cv model loaded...");
 
 
 
@@ -683,6 +411,9 @@ async function initializeDnn() {
 
             // load detector
             await initFaceDetectorTfModel();
+
+            // load face mask detector
+            netMaskTf = await initFaceMaskTfModel();
 
             resolve(true);
         } catch (err) {
@@ -711,6 +442,28 @@ async function initFaceDetectorTfModel() {
     } else {
         netDetectionTf = await tf.loadGraphModel('indexeddb://tf-detector-model');
     }
+}
+
+async function initFaceMaskTfModel() {
+    let net = undefined;
+    // load tensorflow js models
+    let tfMaskInfo = await getTfModelByName('tensorflowjs', dbVersion, 'model_info_store', 'tf-mask-model');
+    console.log("tf mask info: ", tfMaskInfo);
+
+    let tfMaskData = await getTfModelByName('tensorflowjs', dbVersion, 'models_store', 'tf-mask-model');
+    console.log("tf mask data: ", tfMaskData);
+
+
+    if (tfMaskInfo === undefined || tfMaskData === undefined) {
+        console.log("downloading tf maskmodels");
+        net = await tf.loadLayersModel(faceMaskDetectionTfProtoUrl);
+        console.log("face mask detector net loaded...");
+        await net.save('indexeddb://tf-mask-model');
+    } else {
+        net = await tf.loadLayersModel('indexeddb://tf-mask-model');
+    }
+
+    return net;
 }
 
 async function initOpencvNet() {

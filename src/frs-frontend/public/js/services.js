@@ -1,3 +1,5 @@
+let hostname = location.hostname;
+
 //! [Recognize face]
 async function recognizeFace(formData) {
     return new Promise(function (resolve, reject) {

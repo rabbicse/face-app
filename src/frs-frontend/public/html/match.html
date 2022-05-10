@@ -48,8 +48,8 @@
                                 </div>
                             </div>
 
-                            <video class="video" id="video" hidden></video>
-                            <canvas id="output"></canvas>
+                            <video class="video" id="video" autoplay muted playsinline></video>
+                            <canvas id="output" hidden></canvas>
 
                             <div class="d-flex justify-content-left m-1">
                                 <div class="clearfix" id="frsProgress">
@@ -64,7 +64,7 @@
                         </div>
                     </div>
 
-                    <div class="col-auto">
+                    <div class="col">
                         <div class="h-100 p-1 bg-light border rounded-3" style="position: relative;">
                             <canvas id="face" hidden></canvas>
                             <canvas id="face_mesh"></canvas>
@@ -91,12 +91,15 @@
     <script src="/lib/jquery/js/jquery.min.js" type="text/javascript"></script>
     <script src="/lib/bootstrap/js/bootstrap.bundle.min.js" type="text/javascript"></script>
     <!-- placeholder for opencv js -->
-    <script id="script" type="text/javascript"></script>
+    <script id="opencv" type="text/javascript"></script>
     <!-- placeholder for tensorflow js -->
     <script id="tensorflow" type="text/javascript"></script>
 
     <!-- load project js -->
+    <script src="/js/constants.js" type="text/javascript"></script>
+    <script src="/js/dnn.utils.js" type="text/javascript"></script>
     <script src="/js/utils.js" type="text/javascript"></script>
+    <script src="/js/ui.utils.js" type="text/javascript"></script>
     <script src="/js/persistence.js" type="text/javascript"></script>
     <script src="/js/camera.js" type="text/javascript"></script>
 
