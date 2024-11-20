@@ -181,10 +181,10 @@ class RetinaFaceDetector:
 
             # detections.append((b[0], b[1], b[2], b[3]))
             bbox = {
-                'x_min': b[0] / im_width,
-                'y_min': b[1] / im_height,
-                'x_max': b[2] / im_width,
-                'y_max': b[3] / im_height,
+                'x_min': float(b[0] / im_width),
+                'y_min': float(b[1] / im_height),
+                'x_max': float(b[2] / im_width),
+                'y_max': float(b[3] / im_height),
                 'score': b[4]
             }
             # landmarks.append([(b[5], b[6]),
@@ -194,24 +194,24 @@ class RetinaFaceDetector:
             #                   (b[13], b[14])])
 
             landmarks = {'left_eye': {
-                'x': b[5],
-                'y': b[6]
+                'x': float(b[5] / im_width),
+                'y': float(b[6] / im_height)
             },
                 'right_eye': {
-                    'x': b[5],
-                    'y': b[6]
+                    'x': float(b[7] / im_width),
+                    'y': float(b[8] / im_height)
                 },
                 'nose': {
-                    'x': b[5],
-                    'y': b[6]
+                    'x': float(b[9] / im_width),
+                    'y': float(b[10] / im_height)
                 },
                 'left_lip': {
-                    'x': b[5],
-                    'y': b[6]
+                    'x': float(b[11] / im_width),
+                    'y': float(b[12] / im_height)
                 },
                 'right_lip': {
-                    'x': b[5],
-                    'y': b[6]
+                    'x': float(b[13] / im_width),
+                    'y': float(b[14] / im_height)
                 }
             }
 
