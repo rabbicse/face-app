@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Face Recognition system">
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    <title>Face Recognition System</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/face.match.css" rel="stylesheet">
+</head>
+
+<body class="d-flex flex-column h-100">
+
+    <!-- face elements hidden -->
+    <!-- <canvas id="output" hidden></canvas> -->
+    <canvas id="camera_output" hidden></canvas>
+    
+
+    <!-- show messages -->
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
+        <div id="liveToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto">Face Recognition System</strong>
+                <small>Just Now</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body" id="status">
+            </div>
+        </div>
+    </div>
+
+
+    <main class="flex-shrink-0">
+        <div class="album py-4">
+            <div class="container d-flex justify-content-center">
+                <!-- Images -->
+                <div class="row mb-5">
+                    <div class="col-auto">
+                        <div class="h-100 p-1 bg-light border rounded-3" style="position: relative;">
+                            <div class="d-flex justify-content-center" id="spinner">
+                                <div class="spinner-border text-primary float-center" style="width: 3rem; height: 3rem;"
+                                    role="status" id="progress">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+
+                            <video class="video" id="video" autoplay muted playsinline></video>
+                            <canvas id="output" hidden></canvas>
+
+                            <div class="d-flex justify-content-left m-1">
+                                <div class="clearfix" id="frsProgress">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <span class="align-top text-dark fw-bold">
+                                        Processing Face...
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col">
+                        <div class="h-100 p-1 bg-light border rounded-3" style="position: relative;">
+                            <canvas id="face" hidden></canvas>
+                            <canvas id="face_mesh"></canvas>
+
+                            <!-- <div class="d-flex justify-content-left m-1">
+                                <div class="clearfix" id="frsProgress">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <span class="align-top text-dark fw-bold">
+                                        Processing Face...
+                                    </span>
+                                </div>
+                            </div> -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+    <!-- load js libraries -->
+    <script src="/lib/jquery/js/jquery.min.js" type="text/javascript"></script>
+    <script src="/lib/bootstrap/js/bootstrap.bundle.min.js" type="text/javascript"></script>
+    <!-- placeholder for opencv js -->
+    <script id="opencv" type="text/javascript"></script>
+    <!-- placeholder for tensorflow js -->
+    <script id="tensorflow" type="text/javascript"></script>
+
+    <!-- load project js -->
+    <script src="/js/constants.js" type="text/javascript"></script>
+    <script src="/js/dnn.utils.js" type="text/javascript"></script>
+    <script src="/js/utils.js" type="text/javascript"></script>
+    <script src="/js/ui.utils.js" type="text/javascript"></script>
+    <script src="/js/persistence.js" type="text/javascript"></script>
+    <script src="/js/camera.js" type="text/javascript"></script>
+
+
+    <script src="/js/vision.js" type="text/javascript"></script>
+    <script src="/js/services.js" type="text/javascript"></script>
+    <script src="/js/face.match.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        onDocumentReady();
+    </script>
+</body>
+
+</html>
