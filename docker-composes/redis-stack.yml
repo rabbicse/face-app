@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis/redis-stack:latest
+    container_name: redis-stack
+    ports:
+      - "6379:6379"
+      - "8001:8001" # Redis Insight for visualization and debugging
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
+    driver: local
