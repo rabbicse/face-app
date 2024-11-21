@@ -140,7 +140,8 @@ class IResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        with torch.cuda.amp.autocast(self.fp16):
+        with torch.amp.autocast(device_type='cuda', dtype=torch.float16, enabled=self.fp16):
+        # with torch.cuda.amp.autocast(self.fp16):
             x = self.conv1(x)
             x = self.bn1(x)
             x = self.prelu(x)

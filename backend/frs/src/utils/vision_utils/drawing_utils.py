@@ -1,4 +1,31 @@
 import cv2
+import numpy as np
+from screeninfo import get_monitors
+
+
+def resize_image_to_monitor(frame):
+    # Get the primary screen dimensions
+    monitor = get_monitors()[0]  # Assuming you want the primary monitor
+    screen_width = monitor.width
+    screen_height = monitor.height
+    # Set the window to fullscreen
+    # Resize the image to fit the screen while maintaining aspect ratio
+    img_height, img_width = frame.shape[:2]
+    scale_width = float(screen_width) / float(img_width)
+    scale_height = float(screen_height) / float(img_height)
+    scale = min(scale_width, scale_height)
+    new_width = int(img_width * scale)
+    new_height = int(img_height * scale)
+    resized_image = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_AREA)
+
+    # Create a black background for padding
+    canvas = np.zeros((screen_height, screen_width, 3), dtype=np.uint8)
+
+    # Center the image on the canvas
+    y_offset = (screen_height - new_height) // 2
+    x_offset = (screen_width - new_width) // 2
+    canvas[y_offset:y_offset + new_height, x_offset:x_offset + new_width] = resized_image
+    return canvas
 
 
 def draw_img(canvas, detections, window_name='Window', is_fullscreen=False):
@@ -50,7 +77,7 @@ def draw_img(canvas, detections, window_name='Window', is_fullscreen=False):
     cv2.imshow(window_name, canvas)
 
 
-def draw_landmark(canvas, landmark, circle_color, width, height):
+def draw_landmark(canvas, landmark, circle_color, width, height, radius:int = 3):
     x = landmark['x'] * width
     y = landmark['y'] * height
-    cv2.circle(canvas, (int(x), int(y)), 5, circle_color, -1, lineType=cv2.LINE_AA)  # Blue dots
+    cv2.circle(canvas, (int(x), int(y)), radius, circle_color, -1, lineType=cv2.LINE_AA)  # Blue dots

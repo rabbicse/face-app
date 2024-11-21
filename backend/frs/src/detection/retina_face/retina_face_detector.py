@@ -156,8 +156,6 @@ class RetinaFaceDetector:
         landms = landms[order]
         scores = scores[order]
 
-        print(scores)
-
         # do NMS
         dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=False)
         keep = py_cpu_nms(dets, NMS_THRESHOLD)
@@ -185,7 +183,7 @@ class RetinaFaceDetector:
                 'y_min': float(b[1] / im_height),
                 'x_max': float(b[2] / im_width),
                 'y_max': float(b[3] / im_height),
-                'score': b[4]
+                'score': float(b[4])
             }
             # landmarks.append([(b[5], b[6]),
             #                   (b[7], b[8]),
@@ -193,10 +191,11 @@ class RetinaFaceDetector:
             #                   (b[11], b[12]),
             #                   (b[13], b[14])])
 
-            landmarks = {'left_eye': {
-                'x': float(b[5] / im_width),
-                'y': float(b[6] / im_height)
-            },
+            landmarks = {
+                'left_eye': {
+                    'x': float(b[5] / im_width),
+                    'y': float(b[6] / im_height)
+                },
                 'right_eye': {
                     'x': float(b[7] / im_width),
                     'y': float(b[8] / im_height)

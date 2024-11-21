@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
+from typing import Tuple
+
 import cv2
 import numpy as np
 import sklearn
@@ -7,14 +9,18 @@ from sklearn import preprocessing
 import torch
 from numpy.linalg import norm
 from skimage import transform as trans
-from arc_face.backbones import get_model
-from vision_utils.decorators import TimeitDecorator
+from recognition.arc_face.backbones import get_model
+from utils.vision_utils.decorators import TimeitDecorator
 
 logger = logging.getLogger(__name__)
 
 
 class ArcFace(object):
-    def __init__(self, model_path, data_shape=(3, 112, 112), batch_size=1, model_architecture="r100"):
+    def __init__(self,
+                 model_path: str,
+                 data_shape: Tuple[3] = (3, 112, 112),
+                 batch_size: int = 1,
+                 model_architecture: str = "r100"):
         """
         @param model_path:
         @param data_shape:
@@ -22,7 +28,7 @@ class ArcFace(object):
         @param model_architecture:
         """
         self.image_size = (112, 112)
-        weight = torch.load(model_path, map_location=torch.device('cpu'))
+        weight = torch.load(model_path, map_location=torch.device('cpu'), weights_only=True)
         resnet = get_model(model_architecture, dropout=0, fp16=False).cpu()
         resnet.load_state_dict(weight)
         self.model = torch.nn.DataParallel(resnet)

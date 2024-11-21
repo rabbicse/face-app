@@ -1,5 +1,7 @@
 import math
-import cv2.cv2 as cv2
+from typing import Dict
+
+import cv2
 import numpy as np
 
 """
@@ -31,12 +33,12 @@ class PoseEstimation:
 
     def estimate(self, pic, bbox, lm, is_draw=False):
         try:
-            landmarks = [lm[0],
-                         lm[1],
-                         lm[2],
-                         lm[3],
-                         lm[4]]
-            imgpts, modelpts, roll, pitch, yaw, nose = self.face_orientation(pic, to_numpy(landmarks))
+            # landmarks = [lm[0],
+            #              lm[1],
+            #              lm[2],
+            #              lm[3],
+            #              lm[4]]
+            imgpts, modelpts, roll, pitch, yaw = self.face_orientation(pic, lm)#to_numpy(landmarks))
 
             return abs(roll) < 25 and abs(pitch) < 25 and abs(yaw) < 20
 
@@ -98,19 +100,22 @@ class PoseEstimation:
         py = q[1] + arrow_magnitude * math.sin(angle - math.pi / 4)
         cv2.line(img, (int(px), int(py)), q, color, 3)
 
-    def face_orientation(self, frame, landmarks):
+    def face_orientation(self,
+                         frame: np.ndarray,
+                         landmarks: Dict):
         """
         @param frame:
         @param landmarks:
         @return:
         """
+        height, width, _ = frame.shape
         image_points = np.array([
-            (landmarks[0]),  # Left eye left corner
-            (landmarks[1]),  # Right eye right corner
-            (landmarks[2]),  # Nose tip
-            (landmarks[3]),  # Left Mouth corner
-            (landmarks[4])  # Right mouth corner
-        ], dtype="double")
+            (landmarks['left_eye']['x'] * width, landmarks['left_eye']['y'] * height),  # Left eye left corner
+            (landmarks['right_eye']['x'] * width, landmarks['right_eye']['y'] * height),  # Right eye right corner
+            (landmarks['nose']['x'] * width, landmarks['nose']['y'] * height),  # Nose tip
+            (landmarks['left_lip']['x'] * width, landmarks['left_lip']['y'] * height),  # Left Mouth corner
+            (landmarks['right_lip']['x'] * width, landmarks['right_lip']['y'] * height)  # Right mouth corner
+        ], dtype=np.float32)
 
         # get frame width height and channel number
         row, column, channel = frame.shape  # (height, width, color_channel)
@@ -122,7 +127,7 @@ class PoseEstimation:
         camera_matrix = np.array(
             [[max_d, 0, column / 2.0],
              [0, max_d, row / 2.0],
-             [0, 0, 1]], dtype="double"
+             [0, 0, 1]], dtype=np.float32
         )
 
         dist_coeffs = np.zeros((4, 1))  # Assuming no lens distortion
@@ -156,4 +161,4 @@ class PoseEstimation:
 
         print(f'Roll: {roll} - Pitch: {pitch} - Yaw: {yaw}')
 
-        return imgpts, modelpts, roll, pitch, yaw, landmarks[2]
+        return imgpts, modelpts, roll, pitch, yaw

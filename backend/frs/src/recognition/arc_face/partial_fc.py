@@ -17,8 +17,17 @@ class PartialFC(Module):
     """
 
     @torch.no_grad()
-    def __init__(self, rank, local_rank, world_size, batch_size, resume,
-                 margin_softmax, num_classes, sample_rate=1.0, embedding_size=512, prefix="./"):
+    def __init__(self,
+                 rank: int,
+                 local_rank: int,
+                 world_size: int,
+                 batch_size: int,
+                 resume: bool,
+                 margin_softmax: callable,
+                 num_classes: int,
+                 sample_rate: float = 1.0,
+                 embedding_size: int = 512,
+                 prefix: str = "./"):
         """
         rank: int
             Unique process(GPU) ID from 0 to world_size - 1.
@@ -97,7 +106,7 @@ class PartialFC(Module):
         torch.save(self.weight_mom, self.weight_mom_name)
 
     @torch.no_grad()
-    def sample(self, total_label):
+    def sample(self, total_label: torch.Tensor):
         """
         Sample all positive class centers in each rank, and random select neg class centers to filling a fixed
         `num_sample`.

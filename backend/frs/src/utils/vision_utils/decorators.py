@@ -1,6 +1,6 @@
 import functools
 import time
-import vision_utils.log_utils as log_utils
+import utils.vision_utils.log_utils as log_utils
 
 
 def timeit(method):

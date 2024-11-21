@@ -1,32 +1,41 @@
 import os
+from typing import Dict
 
 import numpy as np
-import cv2.cv2 as cv2
+import cv2
 
-from dnn_utils import preprocessor
-from arc_face.arc_face import ArcFace
-from dnn_utils.pose_estimation import PoseEstimation
-from retina_face.retina_face_detector import RetinaFaceDetector
-from vision_utils import log_utils
-from vision_utils.decorators import timeit
+from utils.vision_utils import log_utils
+from utils.vision_utils.decorators import timeit
+from utils.dnn_utils import preprocessor
+from utils.dnn_utils.pose_estimation import PoseEstimation
+
+from detection.retina_face.retina_face_detector import RetinaFaceDetector
+from recognition.arc_face.arc_face import ArcFace
 
 
 class FaceHandler:
-    def __init__(self):
+    def __init__(self,
+                 det_model_path: str,
+                 det_model_tar: str,
+                 rec_model_path: str,
+                 det_network: str = 'mobile0.25',
+                 rec_network: str = 'r100'):
         """
         """
         self.logger = log_utils.LogUtils().get_logger(self.__class__.__name__)
         self.thresh = 0.2
         self.scales = [240, 720]
-        self.retina_face_model = os.path.abspath('models/mobilenet0.25_Final.pth')
-        self.face_detector = RetinaFaceDetector(model_path=self.retina_face_model,
-                                                network='mobile0.25')
-        self.arc_face_model = os.path.abspath('models/backbone-r100.pth')
-        self.recognition = ArcFace('models/backbone-r100.pth')
+        # self.retina_face_model = det_model_path  # os.path.abspath('models/mobilenet0.25_Final.pth')
+        self.face_detector = RetinaFaceDetector(model_path=det_model_path,
+                                                model_tar=det_model_tar,
+                                                network=det_network)
+        # self.arc_face_model = os.path.abspath('models/backbone-r100.pth')
+        self.recognition = ArcFace(model_path=rec_model_path,
+                                   model_architecture=rec_network)
         self.pose_estimator = PoseEstimation()
 
     @timeit
-    def detect_faces(self, img):
+    def detect_faces(self, img: np.ndarray):
         """
         :param img:
         :return:
@@ -46,16 +55,16 @@ class FaceHandler:
                 im_scale = float(max_size) / float(im_size_max)
 
             # print('im_scale', im_scale)
-            faces, landmarks = self.face_detector.detect_faces(img)
-            face_list = []
-            for i in range(len(faces)):
-                face = {
-                    'bbox': faces[i],
-                    'landmark': landmarks[i]
-                }
-                face_list.append(face)
-
-            return face_list
+            faces = self.face_detector.detect_faces(img)
+            self.logger.info(f'Total faces found: {len(faces)}')
+            # face_list = []
+            # for i in range(len(faces)):
+            #     face = {
+            #         'bbox': faces[i],
+            #         'landmark': landmarks[i]
+            #     }
+            #     face_list.append(face)
+            return faces
         except Exception as x:
             self.logger.error(f'Error when detect faces. Details: {x}')
 
@@ -85,13 +94,15 @@ class FaceHandler:
             # cv2.imshow('i', img)
             # cv2.waitKey(0)
 
-            faces, landmarks = self.face_detector.detect_faces(img)
-            return img, faces, landmarks
+            faces = self.face_detector.detect_faces(img)
+            return img, faces
         except Exception as x:
             self.logger.error(f'Error when pre-process0image. Details: {x}')
 
     @timeit
-    def pre_process_face(self, img, box, landmark5):
+    def pre_process_face(self,
+                         img: np.ndarray,
+                         face: Dict):
         """
         :param img:
         :param box:
@@ -99,17 +110,20 @@ class FaceHandler:
         :return:
         """
         try:
-            x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
+            height, width, _ = img.shape
+            box = face['bbox']
+            landmarks = face['landmarks']
+            x1, y1, x2, y2 = box['x_min'] * width, box['y_min'] * height, box['x_max'] * width, box['y_max'] * height
 
             margin = 0
             bb = np.zeros(4, dtype=np.int32)
             bb[0] = np.maximum(x1 - margin / 2, 0)
             bb[1] = np.maximum(y1 - margin / 2, 0)
-            bb[2] = np.minimum(x2 + margin / 2, img.shape[1])
-            bb[3] = np.minimum(y2 + margin / 2, img.shape[0])
+            bb[2] = np.minimum(x2 + margin / 2, width)
+            bb[3] = np.minimum(y2 + margin / 2, height)
             ret = img[bb[1]:bb[3], bb[0]:bb[2], :]
 
-            lan = [[l[0] - bb[0], l[1] - bb[1]] for l in landmark5]
+            lan = [[l['x'] * width - bb[0], l['y'] * height - bb[1]] for l in landmarks.values()]
             ln = np.array(lan, dtype=np.float32)
 
             crop_img = preprocessor.preprocess(ret, image_size=[112, 112], landmark=ln)
@@ -125,13 +139,13 @@ class FaceHandler:
             self.logger.error(f'Error when pre-process-face. Details: {x}')
 
     @timeit
-    def extract_embedding(self, img):
+    def extract_embedding(self, img: np.ndarray):
         """
         :param img:
         :return:
         """
         # detect faces
-        img, faces, landmarks = self.pre_process_img(img)
+        img, faces = self.pre_process_img(img)
 
         self.logger.info(f'Total faces detected: {len(faces)}')
         if len(faces) <= 0:
@@ -139,14 +153,16 @@ class FaceHandler:
 
         # extract rect and landmark=5
         box = faces[0]
-        landmark5 = landmarks[0]
+        face_bbox = box['bbox']
+        landmarks = box['landmarks']
 
         # check face pose
-        if not self.pose_estimator.estimate(img, box, landmark5):
+        if not self.pose_estimator.estimate(img, box, landmarks):
             return -2
 
         # preprocess face before get embeddings
-        crop_img = self.pre_process_face(img, box, landmark5)
+        # todo:
+        crop_img = self.pre_process_face(img, box)
 
         # extract embedding
         emb = self.recognition.get_embedding(crop_img)
