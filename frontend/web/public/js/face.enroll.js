@@ -95,6 +95,7 @@ function showMessage(msg) {
 async function enrollFace(formData) {
     try {
         console.log("ok...enrollFace");
+        console.log(formData);
         return $.ajax({
             method: "POST",
             url: "https://" + hostname + ":5000/enroll/v1",
@@ -183,8 +184,8 @@ async function enrollBlob() {
         // Prepare form data to call enroll service
         const formData = new FormData();
         formData.append("image", blob, "photo.jpg");
-        formData.append("data", JSON.stringify({ "name": $("#enrollName").val() }));
-        console.log(formData);
+        formData.append("data", JSON.stringify({ "name": $("#enrollName").val() }));               
+
         await enrollFace(formData);
     } finally {
         isEnrolling = false;

@@ -645,7 +645,7 @@ async function initializeDnn() {
 
         if (tfMaskInfo === undefined || tfMaskData === undefined) {
             console.log("downloading tf models");
-            netLandmarkTf = await tf.loadGraphModel('/models/model.json');
+            netLandmarkTf = await tf.loadGraphModel(detectionProtoTfDownloadPath);//'/models/model.json');
             // netLandmarkTf = await tf.loadLayersModel('/models/face_mesh.tflite');
             console.log("face landmark net loaded...");
             await netLandmarkTf.save('indexeddb://tf-mask-model');

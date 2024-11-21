@@ -18,10 +18,9 @@ warnings.filterwarnings("ignore")
 
 app = FastAPI()
 
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust as needed
+    allow_origins=["*"],  # Update with allowed origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,7 +30,9 @@ logger = log_utils.LogUtils().get_logger(__name__)
 
 face_handler = FaceHandler(det_model_path=config.DETECTION_MODEL_PATH,
                            det_model_tar=config.DETECTION_MODEL_TAR_PATH,
-                           rec_model_path=config.RECOGNITION_MODEL_PATH)
+                           det_network=config.DETECTION_NETWORK,
+                           rec_model_path=config.RECOGNITION_MODEL_PATH,
+                           rec_network=config.RECOGNITION_NETWORK)
 redis_handler = RedisHandler()
 
 
@@ -89,6 +90,13 @@ async def enroll_v1(image: UploadFile = File(...), data: str = Form(...)):
         photo_data = await image.read()
         frame = np.frombuffer(photo_data, dtype=np.uint8)
         frame = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED)
+
+        if frame.shape[-1] == 4:  # RGBA
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+
+        if len(frame.shape) == 2:  # Grayscale image
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+
         emb = face_handler.extract_embedding(frame)
 
         person_info = json.loads(data)
@@ -99,30 +107,30 @@ async def enroll_v1(image: UploadFile = File(...), data: str = Form(...)):
         return {"status": 0, "embedding": emb.tolist()}
     except Exception as x:
         logger.error(f"Error when enrolling by image. Details: {x}")
+        raise HTTPException(status_code=500, detail="Not a valid image!")
+
+
+@app.post("/match/v1")
+async def match_v1(image: UploadFile = File(...), data: str = Form(...)):
+    try:
+        photo_data = await image.read()
+        frame = np.frombuffer(photo_data, dtype=np.uint8)
+        frame = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED)
+        emb = face_handler.extract_embedding(frame)
+
+        if isinstance(emb, int) and emb == -2:
+            return {"status": 2, "score": str(-3)}
+
+        person_info = json.loads(data)
+        name = person_info["name"]
+
+        # Retrieve embedding from Redis
+        stored_emb = redis_handler.search_data(name)
+        score = face_handler.match(emb, stored_emb)
+        return {"status": 0, "score": str(score)}
+    except Exception as x:
+        logger.error(f"Error when matching by image. Details: {x}")
         raise HTTPException(status_code=400, detail="Not a valid image!")
-
-
-# @app.post("/match/v1")
-# async def match_v1(image: UploadFile = File(...), data: str = Form(...)):
-#     try:
-#         photo_data = await image.read()
-#         frame = np.frombuffer(photo_data, dtype=np.uint8)
-#         frame = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED)
-#         emb = face_handler.extract_embedding(frame)
-#
-#         if isinstance(emb, int) and emb == -2:
-#             return {"status": 2, "score": str(-3)}
-#
-#         person_info = json.loads(data)
-#         name = person_info["name"]
-#
-#         # Retrieve embedding from Redis
-#         stored_emb = redis_handler.search_data(name)
-#         score = face_handler.match(emb, stored_emb)
-#         return {"status": 0, "score": str(score)}
-#     except Exception as x:
-#         logger.error(f"Error when matching by image. Details: {x}")
-#         raise HTTPException(status_code=400, detail="Not a valid image!")
 
 
 @app.post("/match/v2")
