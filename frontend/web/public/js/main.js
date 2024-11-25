@@ -220,10 +220,10 @@ function detectFaces(img) {
         var top = out.data32F[i + 4] * img.rows;
         var right = out.data32F[i + 5] * img.cols;
         var bottom = out.data32F[i + 6] * img.rows;
-        left = Math.min(Math.max(0, left), img.cols - 1);
-        right = Math.min(Math.max(0, right), img.cols - 1);
-        bottom = Math.min(Math.max(0, bottom), img.rows - 1);
-        top = Math.min(Math.max(0, top), img.rows - 1);
+        left = Math.min(Math.max(0, left - 20), img.cols - 1);
+        right = Math.min(Math.max(0, right + 20), img.cols - 1);
+        bottom = Math.min(Math.max(0, bottom + 20), img.rows - 1);
+        top = Math.min(Math.max(0, top - 20), img.rows - 1);
 
         if (confidence > 0.5 && left < right && top < bottom) {
             faces.push({ x: left, y: top, width: right - left, height: bottom - top })
@@ -361,7 +361,7 @@ async function processFrame(frame, frameBGR) {
             $("#progress").show();
             const formData = new FormData();
             formData.append("image", blob, "photo.jpg");
-            formData.append("data", JSON.stringify({ "name": matchName }));
+            formData.append("data", JSON.stringify({ "name": $("#matchName").val() }));
 
             isRecognizing = true;
             await recognizeFace(formData);

@@ -22,7 +22,7 @@ class RetinaFaceDetector:
                  model_path: str,
                  model_tar: str = None,
                  network: str = "resnet50",
-                 cpu: bool = True):
+                 device: str = "cpu"):
         """
         @param model_path:
         @param network:
@@ -30,18 +30,16 @@ class RetinaFaceDetector:
         """
         torch.set_grad_enabled(False)
         self.cfg = None
-        self.device = None
+        self.device: torch.device = torch.device(device)
 
         self.net = self.__create_network(model_path=model_path,
                                          model_tar=model_tar,
-                                         network=network,
-                                         cpu=cpu)
+                                         network=network)
 
     def __create_network(self,
                          model_path: str,
                          model_tar: str = None,
-                         network: str = "resnet50",
-                         cpu: bool = True):
+                         network: str = "resnet50"):
         """
         @param model_path:
         @param network:
@@ -56,8 +54,6 @@ class RetinaFaceDetector:
         # net and model
         net = RetinaFace(cfg=self.cfg, phase=None, model_tar=model_tar)
         net = self.__load_model(net, model_path, load_to_cpu=True)
-
-        self.device = torch.device("cpu" if cpu else "cuda")
         return net.to(self.device)
 
     def __load_model(self,

@@ -20,21 +20,32 @@ class ArcFace(object):
                  model_path: str,
                  data_shape: Tuple[3] = (3, 112, 112),
                  batch_size: int = 1,
-                 model_architecture: str = "r100"):
+                 model_architecture: str = 'r100',
+                 device: str = 'cpu'):
         """
         @param model_path:
         @param data_shape:
         @param batch_size:
         @param model_architecture:
         """
+        self.device: torch.device = torch.device(device)
         self.image_size = (112, 112)
-        weight = torch.load(model_path, map_location=torch.device('cpu'), weights_only=True)
-        resnet = get_model(model_architecture, dropout=0, fp16=False).cpu()
-        resnet.load_state_dict(weight)
-        self.model = torch.nn.DataParallel(resnet)
-        self.model.eval()
+        # weight = torch.load(model_path, map_location=self.device, weights_only=True)
+        # resnet = get_model(model_architecture, dropout=0, fp16=False).cpu()
+        # resnet.load_state_dict(weight)
+        # self.model = torch.nn.DataParallel(resnet)
+        # self.model.eval()
         self.batch_size = batch_size
         self.data_shape = data_shape
+        self.model = self.__load_model(model_path, model_architecture)
+
+    def __load_model(self, model_path: str, model_architecture: str):
+        weight = torch.load(model_path, map_location=self.device, weights_only=True)
+        resnet = get_model(model_architecture, dropout=0, fp16=False).to(self.device)
+        resnet.load_state_dict(weight)
+        model = torch.nn.DataParallel(resnet)
+        model.eval()
+        return model
 
     @TimeitDecorator()
     @torch.no_grad()
@@ -48,7 +59,9 @@ class ArcFace(object):
         feat = self.model(imgs)
         return feat.cpu().numpy()
 
-    def get_embedding(self, img, rgb_convert=False):
+    def get_embedding(self,
+                      img: np.ndarray,
+                      rgb_convert: bool = False):
         """
         @param img:
         @param rgb_convert:

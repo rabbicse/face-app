@@ -19,7 +19,8 @@ class FaceHandler:
                  det_model_tar: str,
                  rec_model_path: str,
                  det_network: str = 'mobile0.25',
-                 rec_network: str = 'r100'):
+                 rec_network: str = 'r100',
+                 device: str = 'cpu'):
         """
         """
         self.logger = log_utils.LogUtils().get_logger(self.__class__.__name__)
@@ -28,10 +29,12 @@ class FaceHandler:
         # self.retina_face_model = det_model_path  # os.path.abspath('models/mobilenet0.25_Final.pth')
         self.face_detector = RetinaFaceDetector(model_path=det_model_path,
                                                 model_tar=det_model_tar,
-                                                network=det_network)
+                                                network=det_network,
+                                                device=device)
         # self.arc_face_model = os.path.abspath('models/backbone-r100.pth')
         self.recognition = ArcFace(model_path=rec_model_path,
-                                   model_architecture=rec_network)
+                                   model_architecture=rec_network,
+                                   device=device)
         self.pose_estimator = PoseEstimation()
 
     @timeit
