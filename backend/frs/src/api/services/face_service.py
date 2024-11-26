@@ -11,9 +11,11 @@ from utils.dnn_utils.pose_estimation import PoseEstimation
 
 from detection.retina_face.retina_face_detector import RetinaFaceDetector
 from recognition.arc_face.arc_face import ArcFace
+from utils.vision_utils.singleton_decorator import SingletonDecorator
 
 
-class FaceHandler:
+@SingletonDecorator
+class FaceService:
     def __init__(self,
                  det_model_path: str,
                  det_model_tar: str,

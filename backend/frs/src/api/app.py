@@ -7,7 +7,7 @@ import numpy
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dnn_utils import dnn_converter
-from face_handler import FaceHandler
+from api.services.face_service import FaceService
 from vision_utils import log_utils
 from vision_utils.redis_handler import RedisHandler
 
@@ -17,7 +17,7 @@ CORS(app)
 
 logger = log_utils.LogUtils().get_logger(__name__)
 
-face_handler = FaceHandler()
+face_handler = FaceService()
 
 redis_handler = RedisHandler()
 

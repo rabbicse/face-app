@@ -15,3 +15,7 @@ class SingletonDecorator(object):
         if self.instance is None:
             self.instance = self.klass(*args, **kwargs)
         return self.instance
+
+    def __getattr__(self, name):
+        # Forward attribute lookups to the original class
+        return getattr(self.klass, name)

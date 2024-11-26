@@ -2,7 +2,9 @@ import time
 from datetime import datetime
 from math import floor
 
+import cv2
 import imutils
+import numpy as np
 
 epoch = datetime.utcfromtimestamp(0)
 
@@ -125,3 +127,15 @@ def parse_dict_default(dictionary, key, default):
     @return:
     """
     return dictionary[key] if key in dictionary else default
+
+def convert_photo_to_bgr(photo):
+    frame = np.frombuffer(photo, dtype=np.uint8)
+    frame = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED)
+
+    if frame.shape[-1] == 4:  # RGBA
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+
+    if len(frame.shape) == 2:  # Grayscale image
+        frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+
+    return frame

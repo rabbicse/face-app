@@ -12,7 +12,7 @@ from utils.dnn_utils import dnn_converter
 from face_handler import FaceHandler
 from utils.vision_utils import log_utils
 from utils.vision_utils.decorators import TimeitDecorator
-from utils.vision_utils.redis_handler import RedisHandler
+from cache.redis_service import RedisCacheService
 
 warnings.filterwarnings("ignore")
 
@@ -36,7 +36,7 @@ face_handler = FaceHandler(detector_network='resnet50',
                            dnn_config=dnn_config,
                            debug=False)
 
-redis_handler = RedisHandler()
+redis_handler = RedisCacheService()
 
 
 @app.route('/detect/v1', methods=['POST'])

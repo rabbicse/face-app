@@ -145,3 +145,4 @@ cython_debug/
 # Idea
 .idea/
 volumes/
+qdrant_data/

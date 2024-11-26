@@ -1,41 +1,49 @@
+import logging
 import struct
 
 import numpy as np
 import redis
 
+from cache.cache_service import CacheService
 from utils.vision_utils.singleton_decorator import SingletonDecorator
+
+logger = logging.getLogger(__name__)
 
 
 # https://stackoverflow.com/questions/55311399/fastest-way-to-store-a-numpy-array-in-redis
-
 @SingletonDecorator
-class RedisHandler:
+class RedisCacheService:#(CacheService):
     def __init__(self,
                  host: str = '127.0.0.1',
                  port: str = '6379'):
+        # super(RedisCacheService, self).__init__()
         self.client = redis.Redis(
             host=host,
             port=port
         )
 
-    def insert_data(self, key, value):
+    def insert_data(self,
+                    key: str,
+                    value: object):
         try:
-            print(key)
-            print(str(value.dtype))
+            logger.info(f'Inserting key: {key} value type: {str(value.dtype)}')
             v = value.ravel().tostring()
             response = self.client.set(key, v)
-            print(response)
+            logger.info(f'cache insertion response: {response}')
         except Exception as x:
             print(x)
 
-    def insert_text(self, key, value):
+    def insert_text(self,
+                    key: str,
+                    value: str):
         try:
             response = self.client.set(key, value)
             print(response)
         except Exception as x:
             print(x)
 
-    def search_data(self, key):
+    def search(self,
+               key: str):
         try:
             n = self.client.get(key)
             if n:
@@ -44,7 +52,7 @@ class RedisHandler:
         except Exception as x:
             print(x)
 
-    def search_all_data(self):
+    def get_all(self):
         try:
             for k in self.client.scan_iter():
                 yield k
