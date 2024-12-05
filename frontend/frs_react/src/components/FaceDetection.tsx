@@ -1,11 +1,19 @@
 "use client"
 
 import React, { useRef, useEffect, useState } from 'react';
-import * as tf from '@tensorflow/tfjs';
+import '@mediapipe/face_detection';
+import '@tensorflow/tfjs-core';
 // Register WebGL backend.
-import '@tensorflow/tfjs-backend-webgl';
+import '@tensorflow/tfjs-backend-webgpu';
 import * as faceDetection from '@tensorflow-models/face-detection';
-import { MediaPipeFaceDetectorTfjsModelConfig } from '@tensorflow-models/face-detection';
+
+
+
+import * as tf from '@tensorflow/tfjs';
+// // Register WebGL backend.
+// import '@tensorflow/tfjs-backend-webgl';
+// import * as faceDetection from '@tensorflow-models/face-detection';
+// import { MediaPipeFaceDetectorTfjsModelConfig } from '@tensorflow-models/face-detection';
 
 const FaceDetection = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -17,15 +25,15 @@ const FaceDetection = () => {
             try {
                 // Register TensorFlow.js backends
                 // await tf.setBackend('webgl'); // Attempt to use WebGL
-                // await tf.ready(); // Ensure TensorFlow.js is ready
+                await tf.ready(); // Ensure TensorFlow.js is ready
 
                 // console.log('TensorFlow.js backend initialized:', tf.getBackend());
 
                 // Load the MediaPipe Face Detector model
                 const model = faceDetection.SupportedModels.MediaPipeFaceDetector;
-                const detectorConfig: MediaPipeFaceDetectorTfjsModelConfig = {
+                const detectorConfig = {
                     runtime: 'tfjs',
-                    maxFaces: 1,
+                    // maxFaces: 1,
                 };
                 const faceDetector = await faceDetection.createDetector(model, detectorConfig);
                 setDetector(faceDetector);
@@ -110,7 +118,7 @@ const FaceDetection = () => {
 
     return (
         <div style={{ position: 'relative' }}>
-            <video ref={videoRef} style={{ display: 'block', width: '100%' }} />
+            <video ref={videoRef} style={{ display: 'block', width: 640, height: 480 }} />
             <canvas
                 ref={canvasRef}
                 style={{
