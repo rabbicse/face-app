@@ -148,11 +148,12 @@ export class MediaPipeFaceDetectorTfjs implements FaceDetector {
 
   async estimateFaces(
     image: tf.Tensor3D | ImageData | HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
+    imageSize: ImageSize,
     estimationConfig?: MediaPipeFaceDetectorTfjsEstimationConfig):
     Promise<Face[]> {
-    console.log(`width: ${image.width} height: ${image.height}`);
-    const imageSize = getInputTensorDimensions(image);
-    console.log(imageSize);
+    console.log(`width: ${imageSize.width} height: ${imageSize.height}`);
+    // const imageSize = getInputTensorDimensions(image);
+    // console.log(imageSize);
     const flipHorizontal =
       estimationConfig ? estimationConfig.flipHorizontal : false;
     return this.detectFaces(image, flipHorizontal)

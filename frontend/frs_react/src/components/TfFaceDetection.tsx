@@ -58,7 +58,7 @@ const TfFaceDetection = () => {
         ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         const annotateBoxes = true;
-        const predictions = await netDetectionTf.estimateFaces(video, { flipHorizontal: false });
+        const predictions = await netDetectionTf.estimateFaces(video, { width: video.videoWidth, height: video.videoHeight }, { flipHorizontal: false });
         console.log(`predictions length: ${predictions.length}`);
 
         if (predictions.length > 0) {
