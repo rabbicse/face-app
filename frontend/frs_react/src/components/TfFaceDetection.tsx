@@ -4,13 +4,13 @@ import React, { useEffect, useRef, useState } from "react";
 import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs-backend-cpu';
 import * as tf from "@tensorflow/tfjs";
-import { FaceDetectorTfjs, load } from "@/lib/detections/detector";
+import { load, MediaPipeFaceDetectorTfjs } from "@/dnn/face_detector/detector";
 
 
 const TfFaceDetection = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [netDetectionTf, setNetDetectionTf] = useState<FaceDetectorTfjs | null>(null);
+    const [netDetectionTf, setNetDetectionTf] = useState<MediaPipeFaceDetectorTfjs | null>(null);
 
     useEffect(() => {
         // Load TensorFlow model
@@ -94,7 +94,7 @@ const TfFaceDetection = () => {
         // const flipHorizontal = true;
         const annotateBoxes = true;
         const predictions = await netDetectionTf.estimateFaces(
-            video, {flipHorizontal: false});
+            video, { flipHorizontal: false });
         console.log(predictions);
         console.log(`predictions length: ${predictions.length}`);
 
@@ -102,37 +102,30 @@ const TfFaceDetection = () => {
             console.log(predictions);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             for (let i = 0; i < predictions.length; i++) {
-                console.log(`prediction[${i}] => ${predictions}`)
-                // if (returnTensors) {
+                console.log(`prediction[${i}] => ${predictions[i]}`)
 
-                //     console.log(predictions[i].topLeft.arraySync());
+                const prediction = predictions[i];
+                const box = prediction.box;
 
-                //     predictions[i].topLeft = predictions[i].topLeft.arraySync();
-                //     predictions[i].bottomRight = predictions[i].bottomRight.arraySync();
-                //     if (annotateBoxes) {
-                //         predictions[i].landmarks = predictions[i].landmarks.arraySync();
-                //     }
-                // }
+                // const start = predictions[i].topLeft;
+                // const end = predictions[i].bottomRight;
+                // console.log(start);
+                // console.log(end);
 
-                const start = predictions[i].topLeft;
-                const end = predictions[i].bottomRight;
-                console.log(start);
-                console.log(end);
+                // console.log(`start: ${start} end: ${end}`);
 
-                console.log(`start: ${start} end: ${end}`);
-
-                const size = [Math.abs(end[0]) - Math.abs(start[0]), Math.abs(end[1]) - Math.abs(start[1])];
+                const size = [Math.abs(box.width), Math.abs(box.height)];
                 console.log(`size: ${size}`);
                 ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-                ctx.fillRect(Math.abs(start[0]), start[1], size[0], size[1]);
+                ctx.fillRect(Math.abs(box.xMin), Math.abs(box.yMin), size[0], size[1]);
 
                 if (annotateBoxes) {
-                    const landmarks = predictions[i].landmarks;
+                    const landmarks = prediction.keypoints;
 
                     ctx.fillStyle = 'blue';
                     for (let j = 0; j < landmarks.length; j++) {
-                        const x = Math.abs(landmarks[j][0]);
-                        const y = Math.abs(landmarks[j][1]);
+                        const x = Math.abs(landmarks[j].x);
+                        const y = Math.abs(landmarks[j].y);
                         ctx.fillRect(x, y, 5, 5);
                     }
                 }

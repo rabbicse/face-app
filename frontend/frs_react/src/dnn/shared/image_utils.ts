@@ -17,8 +17,8 @@
 import * as tf from '@tensorflow/tfjs-core';
 import {Matrix4x4} from './calculate_inverse_matrix';
 
-import {ImageSize, InputResolution, Padding, PixelInput, ValueTransform} from './interfaces/common_interfaces';
-import {Rect} from './interfaces/shape_interfaces';
+import {ImageSize, InputResolution, Padding, PixelInput, ValueTransform} from '../shared/interfaces/common';
+import {Rect} from '../shared/interfaces/shapes';
 
 export function getImageSize(input: PixelInput): ImageSize {
   if (input instanceof tf.Tensor) {

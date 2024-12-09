@@ -4,12 +4,14 @@ import React, { useEffect, useRef, useState } from "react";
 import '@tensorflow/tfjs-backend-webgl';
 import '@tensorflow/tfjs-backend-cpu';
 import * as tf from "@tensorflow/tfjs";
+import { FaceLandmarksDetector } from "@/dnn/face_landmark/face_landmarks_detector";
+import { load } from "@/dnn/face_landmark/detector";
 
 
 const TfFaceMeshDetection = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [netDetectionTf, setNetDetectionTf] = useState<FaceDetectorTfjs | null>(null);
+    const [netDetectionTf, setNetDetectionTf] = useState<FaceLandmarksDetector | null>(null);
 
     useEffect(() => {
         // Load TensorFlow model
