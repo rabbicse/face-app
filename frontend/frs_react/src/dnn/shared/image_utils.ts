@@ -15,18 +15,32 @@
  * =============================================================================
  */
 import * as tf from '@tensorflow/tfjs-core';
-import {Matrix4x4} from './calculate_inverse_matrix';
+import { Matrix4x4 } from './calculate_inverse_matrix';
 
-import {ImageSize, InputResolution, Padding, PixelInput, ValueTransform} from '../shared/interfaces/common';
-import {Rect} from '../shared/interfaces/shapes';
+import { ImageSize, InputResolution, Padding, PixelInput, ValueTransform } from '../shared/interfaces/common';
+import { Rect } from '../shared/interfaces/shapes';
 
 export function getImageSize(input: PixelInput): ImageSize {
   if (input instanceof tf.Tensor) {
-    return {height: input.shape[0], width: input.shape[1]};
+    return { height: input.shape[0], width: input.shape[1] };
   } else {
-    return {height: input.height, width: input.width};
+    console.log(`Input size: ${input.width} x ${input.height}`);
+    return { height: input.height, width: input.width };
   }
 }
+
+// function getInputTensorDimensions(input: tf.Tensor3D | ImageData | HTMLVideoElement |
+//   HTMLImageElement |
+//   HTMLCanvasElement): ImageSize {
+//     console.log(input);
+//   return input instanceof tf.Tensor ? { height: input.shape[0], width: input.shape[1] } : { height: input.height, width: input.width };
+// }
+
+
+function getInputTensorDimensions(input: tf.Tensor3D | ImageData | HTMLVideoElement | HTMLImageElement | HTMLCanvasElement): [number, number] {
+  return input instanceof tf.Tensor ? [input.shape[0], input.shape[1]] : [input.height, input.width];
+}
+
 
 /**
  * Normalizes the provided angle to the range -pi to pi.
@@ -44,19 +58,19 @@ export function normalizeRadians(angle: number): number {
  * @param toMax New max of transformed value range.
  */
 export function transformValueRange(
-    fromMin: number, fromMax: number, toMin: number,
-    toMax: number): ValueTransform {
+  fromMin: number, fromMax: number, toMin: number,
+  toMax: number): ValueTransform {
   const fromRange = fromMax - fromMin;
   const toRange = toMax - toMin;
 
   if (fromRange === 0) {
     throw new Error(
-        `Original min and max are both ${fromMin}, range cannot be 0.`);
+      `Original min and max are both ${fromMin}, range cannot be 0.`);
   }
 
   const scale = toRange / fromRange;
   const offset = toMin - fromMin * scale;
-  return {scale, offset};
+  return { scale, offset };
 }
 
 /**
@@ -85,9 +99,9 @@ export function toImageTensor(input: PixelInput) {
  * @param keepAspectRatio Whether keep aspect ratio. Default to false.
  */
 export function padRoi(
-    roi: Rect, targetSize: InputResolution, keepAspectRatio = false): Padding {
+  roi: Rect, targetSize: InputResolution, keepAspectRatio = false): Padding {
   if (!keepAspectRatio) {
-    return {top: 0, left: 0, right: 0, bottom: 0};
+    return { top: 0, left: 0, right: 0, bottom: 0 };
   }
 
   const targetH = targetSize.height;
@@ -165,8 +179,8 @@ export function getRoi(imageSize: ImageSize, normRect?: Rect): Rect {
  * @param inputResolution The target height and width.
  */
 export function getProjectiveTransformMatrix(
-    matrix: Matrix4x4, imageSize: ImageSize, inputResolution: InputResolution):
-    [number, number, number, number, number, number, number, number] {
+  matrix: Matrix4x4, imageSize: ImageSize, inputResolution: InputResolution):
+  [number, number, number, number, number, number, number, number] {
   validateSize(inputResolution, 'inputResolution');
 
   // To use M with regular x, y coordinates, we need to normalize them first.
@@ -187,7 +201,7 @@ export function getProjectiveTransformMatrix(
   return [a0, a1, a2, b0, b1, b2, 0, 0];
 }
 
-function validateSize(size: {width: number, height: number}, name: string) {
+function validateSize(size: { width: number, height: number }, name: string) {
   tf.util.assert(size.width !== 0, () => `${name} width cannot be 0.`);
   tf.util.assert(size.height !== 0, () => `${name} height cannot be 0.`);
 }

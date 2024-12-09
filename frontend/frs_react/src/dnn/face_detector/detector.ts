@@ -33,6 +33,14 @@ import * as constants from './constants'
 import { validateModelConfig } from './detector_utils'
 import { Face, FaceDetectorInput, MediaPipeFaceDetectorTfjsEstimationConfig, MediaPipeFaceDetectorTfjsModelConfig } from './types'
 import { DEFAULT_DETECTOR_MODEL_URL_SHORT, MEDIAPIPE_FACE_DETECTOR_KEYPOINTS } from './constants';
+import { ImageSize, PixelInput } from '../shared/interfaces/common';
+
+function getInputTensorDimensions(input: tf.Tensor3D | ImageData | HTMLVideoElement |
+  HTMLImageElement |
+  HTMLCanvasElement): [number, number] {
+  return input instanceof tf.Tensor ? [input.shape[0], input.shape[1]] :
+    [input.height, input.width];
+}
 
 export class MediaPipeFaceDetectorTfjs implements FaceDetector {
   private readonly imageToTensorConfig: ImageToTensorConfig;
@@ -139,10 +147,11 @@ export class MediaPipeFaceDetectorTfjs implements FaceDetector {
   }
 
   async estimateFaces(
-    image: FaceDetectorInput,
+    image: tf.Tensor3D | ImageData | HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
     estimationConfig?: MediaPipeFaceDetectorTfjsEstimationConfig):
     Promise<Face[]> {
-    const imageSize = getImageSize(image);
+    console.log(`width: ${image.width} height: ${image.height}`);
+    const imageSize = getInputTensorDimensions(image);
     console.log(imageSize);
     const flipHorizontal =
       estimationConfig ? estimationConfig.flipHorizontal : false;
@@ -151,16 +160,16 @@ export class MediaPipeFaceDetectorTfjs implements FaceDetector {
         const keypoints = detection.locationData.relativeKeypoints.map(
           (keypoint, i) => ({
             ...keypoint,
-            x: keypoint.x * 640,//imageSize.width,
-            y: keypoint.y * 480,//imageSize.height,
+            x: keypoint.x * imageSize.width,
+            y: keypoint.y * imageSize.height,
             name: MEDIAPIPE_FACE_DETECTOR_KEYPOINTS[i]
           }));
         const box = detection.locationData.relativeBoundingBox;
         for (const key of ['width', 'xMax', 'xMin'] as const) {
-          box[key] *= 640//imageSize.width;
+          box[key] *= imageSize.width;
         }
         for (const key of ['height', 'yMax', 'yMin'] as const) {
-          box[key] *= 480//imageSize.height;
+          box[key] *= imageSize.height;
         }
         return { keypoints, box };
       }));

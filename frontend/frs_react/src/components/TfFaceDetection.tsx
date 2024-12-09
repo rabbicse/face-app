@@ -1,10 +1,8 @@
 "use client"
 
 import React, { useEffect, useRef, useState } from "react";
-import '@tensorflow/tfjs-backend-webgl';
-import '@tensorflow/tfjs-backend-cpu';
-import * as tf from "@tensorflow/tfjs";
 import { load, MediaPipeFaceDetectorTfjs } from "@/dnn/face_detector/detector";
+import { setupBackend } from "@/dnn/tf-backend";
 
 
 const TfFaceDetection = () => {
@@ -15,7 +13,7 @@ const TfFaceDetection = () => {
     useEffect(() => {
         // Load TensorFlow model
         const loadModel = async () => {
-            await tf.setBackend("cpu");
+            await setupBackend();
 
             const model = await load();
             setNetDetectionTf(model);
@@ -27,7 +25,6 @@ const TfFaceDetection = () => {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
-                // videoRef.current.play();
                 videoRef.current.onloadedmetadata = () => {
                     videoRef.current?.play();
                 };
@@ -59,65 +56,32 @@ const TfFaceDetection = () => {
 
         // Capture video frame as ImageData
         ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-        // const imageData = ctx?.getImageData(0, 0, canvas.width, canvas.height);
 
-        // if (!imageData) return;
-        // const videoFrame = tf.browser.fromPixels(video); // Create a tensor from video frame
-
-        // Run face detection
-        // const results = await detectFaceTfAsync(video, netDetectionTf);
-        // console.log(results);
-
-        // // Draw results
-        // ctx?.clearRect(0, 0, canvas.width, canvas.height);
-        // ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-        // results.forEach((result) => {
-        //     const { bbox, landmarks } = result;
-
-        //     // Draw bounding box
-        //     ctx?.beginPath();
-        //     ctx?.rect(bbox.x, bbox.y, bbox.width, bbox.height);
-        //     ctx!.lineWidth = 2;
-        //     ctx!.strokeStyle = "red";
-        //     ctx?.stroke();
-
-        //     // Draw landmarks
-        //     landmarks.forEach(([x, y]) => {
-        //         ctx?.beginPath();
-        //         ctx?.arc(x, y, 3, 0, 2 * Math.PI);
-        //         ctx!.fillStyle = "blue";
-        //         ctx?.fill();
-        //     });
-        // });
-
-        // const returnTensors = false;
-        // const flipHorizontal = true;
         const annotateBoxes = true;
-        const predictions = await netDetectionTf.estimateFaces(
-            video, { flipHorizontal: false });
-        console.log(predictions);
+        const predictions = await netDetectionTf.estimateFaces(video, { flipHorizontal: false });
         console.log(`predictions length: ${predictions.length}`);
 
         if (predictions.length > 0) {
             console.log(predictions);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             for (let i = 0; i < predictions.length; i++) {
-                console.log(`prediction[${i}] => ${predictions[i]}`)
-
                 const prediction = predictions[i];
                 const box = prediction.box;
-
-                // const start = predictions[i].topLeft;
-                // const end = predictions[i].bottomRight;
-                // console.log(start);
-                // console.log(end);
-
-                // console.log(`start: ${start} end: ${end}`);
 
                 const size = [Math.abs(box.width), Math.abs(box.height)];
                 console.log(`size: ${size}`);
                 ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
                 ctx.fillRect(Math.abs(box.xMin), Math.abs(box.yMin), size[0], size[1]);
+
+                // Draw rectangle outline
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)'; // Set stroke color and transparency
+                ctx.lineWidth = 2; // Set the line width for better visibility
+                ctx.strokeRect(
+                    Math.abs(box.xMin),
+                    Math.abs(box.yMin),
+                    size[0],
+                    size[1]
+                );
 
                 if (annotateBoxes) {
                     const landmarks = prediction.keypoints;
@@ -144,7 +108,10 @@ const TfFaceDetection = () => {
         <div style={{ position: "relative" }}>
             <video
                 ref={videoRef}
-                style={{ display: "block", width: 640, height: 480 }}
+                style={{
+                    display: "block",
+                    width: 640, height: 480
+                }}
             />
             <canvas
                 ref={canvasRef}
