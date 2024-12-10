@@ -16,8 +16,8 @@
  */
 
 import { io } from '@tensorflow/tfjs-core';
-import { Keypoint, PixelInput } from '../shared/interfaces/common';
-import { BoundingBox } from '../shared/interfaces/shapes';
+import { Keypoint, PixelInput } from './interfaces/common';
+import { BoundingBox } from './interfaces/shapes';
 
 export type { Keypoint };
 

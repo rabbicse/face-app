@@ -1,42 +1,35 @@
-// Function to draw landmarks
-function drawLandmark(ctx, landmark, color, width, height) {
-    const x = landmark.x * width;
-    const y = landmark.y * height;
-    ctx.beginPath();
-    ctx.arc(x, y, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = color;
-    ctx.fill();
-}
+import { Face } from "./types";
 
 // Draw detections
-function drawDetections(ctx, detections, imgWidth, imgHeight) {
-    const rectColor = 'rgba(224, 128, 20, 0.8)';
-    const rectLineWidth = 2;
+export function drawDetection(ctx: CanvasRenderingContext2D, detection: Face) {
+    const box = detection.box;
+    const landmarks = detection.keypoints;
 
-    detections.forEach(detection => {
-        const bbox = detection.bbox;
-        const landmarks = detection.landmarks;
 
-        const xMin = bbox.x_min * imgWidth;
-        const yMin = bbox.y_min * imgHeight;
-        const xMax = bbox.x_max * imgWidth;
-        const yMax = bbox.y_max * imgHeight;
+    // draw rectangle background
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+    ctx.fillRect(
+        Math.abs(box.xMin),
+        Math.abs(box.yMin),
+        Math.abs(box.width),
+        Math.abs(box.height)
+    );
 
-        // Draw bounding box
-        ctx.strokeStyle = rectColor;
-        ctx.lineWidth = rectLineWidth;
-        ctx.strokeRect(xMin, yMin, xMax - xMin, yMax - yMin);
+    // Draw rectangle outline
+    ctx.strokeStyle = 'rgba(100, 149, 237, 0.8)'; // Set stroke color and transparency
+    ctx.lineWidth = 2; // Set the line width for better visibility
+    ctx.strokeRect(
+        Math.abs(box.xMin),
+        Math.abs(box.yMin),
+        Math.abs(box.width),
+        Math.abs(box.height)
+    );
 
-        // Draw score
-        ctx.fillStyle = 'white';
-        ctx.font = '16px Arial';
-        ctx.fillText(`Score: ${bbox.score.toFixed(2)}`, xMin + 10, yMin + 20);
-
-        // Draw landmarks
-        // drawLandmark(ctx, landmarks.left_eye, 'red', imgWidth, imgHeight);
-        // drawLandmark(ctx, landmarks.right_eye, 'red', imgWidth, imgHeight);
-        // drawLandmark(ctx, landmarks.nose, 'green', imgWidth, imgHeight);
-        // drawLandmark(ctx, landmarks.left_lip, 'blue', imgWidth, imgHeight);
-        // drawLandmark(ctx, landmarks.right_lip, 'blue', imgWidth, imgHeight);
-    });
+    // Draw landmarks
+    ctx.fillStyle = 'blue';
+    for (let j = 0; j < landmarks.length; j++) {
+        const x = Math.abs(landmarks[j].x);
+        const y = Math.abs(landmarks[j].y);
+        ctx.fillRect(x, y, 5, 5);
+    }
 }

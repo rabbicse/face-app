@@ -17,7 +17,7 @@
 
 import {AnchorConfig, ImageToTensorConfig, TensorsToDetectionsConfig} from '../shared/interfaces/config';
 
-import {MediaPipeFaceDetectorTfjsEstimationConfig, MediaPipeFaceDetectorTfjsModelConfig} from './types';
+import {MediaPipeFaceDetectorTfjsEstimationConfig, MediaPipeFaceDetectorTfjsModelConfig} from '../shared/types';
 
 // Non-sparse full model is not currently used but is available if needed for
 // future use cases.

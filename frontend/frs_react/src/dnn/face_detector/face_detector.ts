@@ -15,7 +15,7 @@
  * =============================================================================
  */
 import { ImageSize } from '../shared/interfaces/common';
-import { Face, FaceDetectorInput, MediaPipeFaceDetectorMediaPipeEstimationConfig, MediaPipeFaceDetectorTfjsEstimationConfig } from './types';
+import { Face, FaceDetectorInput, MediaPipeFaceDetectorMediaPipeEstimationConfig, MediaPipeFaceDetectorTfjsEstimationConfig } from '../shared/types';
 
 /**
  * User-facing interface for all face pose detectors.

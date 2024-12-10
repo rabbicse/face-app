@@ -16,7 +16,7 @@
  */
 
 import {DEFAULT_DETECTOR_MODEL_URL_FULL_SPARSE, DEFAULT_DETECTOR_MODEL_URL_SHORT, DEFAULT_FACE_DETECTOR_ESTIMATION_CONFIG, DEFAULT_FACE_DETECTOR_MODEL_CONFIG} from ;
-import {MediaPipeFaceDetectorTfjsEstimationConfig, MediaPipeFaceDetectorTfjsModelConfig} from './types';
+import {MediaPipeFaceDetectorTfjsEstimationConfig, MediaPipeFaceDetectorTfjsModelConfig} from '../shared/types';
 
 export function validateModelConfig(
     modelConfig: MediaPipeFaceDetectorTfjsModelConfig):

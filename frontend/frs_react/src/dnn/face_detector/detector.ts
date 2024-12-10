@@ -31,7 +31,7 @@ import { nonMaxSuppression } from '../shared/non_max_suppression';
 import { tensorsToDetections } from '../shared/tensors_to_detections';
 import * as constants from './constants'
 import { validateModelConfig } from './detector_utils'
-import { Face, FaceDetectorInput, MediaPipeFaceDetectorTfjsEstimationConfig, MediaPipeFaceDetectorTfjsModelConfig } from './types'
+import { Face, FaceDetectorInput, MediaPipeFaceDetectorTfjsEstimationConfig, MediaPipeFaceDetectorTfjsModelConfig } from '../shared/types'
 import { DEFAULT_DETECTOR_MODEL_URL_SHORT, MEDIAPIPE_FACE_DETECTOR_KEYPOINTS } from './constants';
 import { ImageSize, PixelInput } from '../shared/interfaces/common';
 

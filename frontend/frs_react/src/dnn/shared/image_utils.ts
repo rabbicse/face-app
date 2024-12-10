@@ -29,15 +29,7 @@ export function getImageSize(input: PixelInput): ImageSize {
   }
 }
 
-// function getInputTensorDimensions(input: tf.Tensor3D | ImageData | HTMLVideoElement |
-//   HTMLImageElement |
-//   HTMLCanvasElement): ImageSize {
-//     console.log(input);
-//   return input instanceof tf.Tensor ? { height: input.shape[0], width: input.shape[1] } : { height: input.height, width: input.width };
-// }
-
-
-function getInputTensorDimensions(input: tf.Tensor3D | ImageData | HTMLVideoElement | HTMLImageElement | HTMLCanvasElement): [number, number] {
+export function getInputTensorDimensions(input: tf.Tensor3D | ImageData | HTMLVideoElement | HTMLImageElement | HTMLCanvasElement): [number, number] {
   return input instanceof tf.Tensor ? [input.shape[0], input.shape[1]] : [input.height, input.width];
 }
 

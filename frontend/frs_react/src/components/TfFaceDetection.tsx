@@ -5,15 +5,13 @@ import { load, MediaPipeFaceDetectorTfjs } from "@/dnn/face_detector/detector";
 import { setupBackend } from "@/dnn/tf-backend";
 import { BoundingBox } from "@/dnn/shared/interfaces/shapes";
 import { sendCroppedFace } from "@/api/clients/faceRecognitionClient";
+import { drawDetection } from "@/dnn/shared/drawing_utils";
 
-const cropFace = (image: HTMLVideoElement, box: BoundingBox) => {
+const cropFace = (image: HTMLVideoElement, box: BoundingBox): Promise<Blob> => {
     return new Promise((resolve) => {
         // Create a temporary canvas to crop the face
         const faceCanvas = document.createElement("canvas");
         const faceCtx = faceCanvas.getContext("2d");
-
-        // faceCanvas.width = Math.abs(box.width);
-        // faceCanvas.height = Math.abs(box.height);
 
         faceCanvas.width = Math.abs(image.videoWidth);
         faceCanvas.height = Math.abs(image.videoHeight);
@@ -59,7 +57,15 @@ const TfFaceDetection = () => {
 
         // Initialize video stream
         const startVideo = async () => {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            // Specify desired video resolution
+            const constraints = {
+                video: {
+                    width: { ideal: 640 }, // Preferred width
+                    height: { ideal: 480 }, // Preferred height
+                },
+            };
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 videoRef.current.onloadedmetadata = () => {
@@ -80,6 +86,8 @@ const TfFaceDetection = () => {
         if (!videoRef.current || !canvasRef.current || !netDetectionTf) return;
 
         const video = videoRef.current;
+        if (video.videoWidth == 0 || video.videoHeight == 0) return;
+
         const canvas = canvasRef.current;
         const ctx = canvas.getContext("2d");
 
@@ -93,41 +101,18 @@ const TfFaceDetection = () => {
         ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         const predictions = await netDetectionTf.estimateFaces(video, { width: video.videoWidth, height: video.videoHeight }, { flipHorizontal: false });
-        console.log(`predictions length: ${predictions.length}`);
 
         if (predictions.length > 0) {
-            console.log(predictions);
+            // console.log(predictions);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             for (let i = 0; i < predictions.length; i++) {
-                const prediction = predictions[i];
-                const box = prediction.box;
+                const detection = predictions[i];
 
-                const size = [Math.abs(box.width), Math.abs(box.height)];
-                console.log(`size: ${size}`);
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
-                ctx.fillRect(Math.abs(box.xMin), Math.abs(box.yMin), size[0], size[1]);
+                // draw over canvas for visualization
+                drawDetection(ctx, detection);
 
-                // Draw rectangle outline
-                ctx.strokeStyle = 'rgba(100, 149, 237, 0.8)'; // Set stroke color and transparency
-                ctx.lineWidth = 2; // Set the line width for better visibility
-                ctx.strokeRect(
-                    Math.abs(box.xMin),
-                    Math.abs(box.yMin),
-                    size[0],
-                    size[1]
-                );
-
-                const landmarks = prediction.keypoints;
-
-                ctx.fillStyle = 'blue';
-                for (let j = 0; j < landmarks.length; j++) {
-                    const x = Math.abs(landmarks[j].x);
-                    const y = Math.abs(landmarks[j].y);
-                    ctx.fillRect(x, y, 5, 5);
-                }
-
-                // todo: crop image based on bbox
-                const croppedFace = await cropFace(video, box);
+                // crop image based on bounding bbox
+                const croppedFace = await cropFace(video, detection.box);
                 // todo: send cropped image python backend
                 const response = await sendCroppedFace(croppedFace);
                 console.log(response);
@@ -142,7 +127,7 @@ const TfFaceDetection = () => {
     }, [netDetectionTf]);
 
     return (
-        <div style={{ position: "relative", width: "100%", height: "80vh" }}>
+        <div style={{ position: "relative", width: "100%", height: "90vh" }}>
             <video
                 ref={videoRef}
                 style={{
