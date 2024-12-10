@@ -36,7 +36,7 @@ async def extract_embedding(photo: UploadFile = File(...),
 
         emb = face_service.extract_embedding(frame)
 
-        if isinstance(emb, int) and emb == -2:
+        if isinstance(emb, int):
             return {"status": 2, "embedding": str(-3)}
 
         emb_b64 = base64.b64encode(emb.tobytes()).decode("ascii")

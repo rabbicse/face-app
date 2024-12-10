@@ -81,7 +81,9 @@ class ArcFace(object):
             data = img
 
         data = np.transpose(data, (2, 0, 1))  # 3*112*112, RGB
+
         img_orig = torch.from_numpy(data).unsqueeze(0).float()
+
         emb = self.forward_db(img_orig)
         return sklearn.preprocessing.normalize(emb).flatten()
 

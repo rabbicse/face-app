@@ -1,4 +1,5 @@
 import os
+import uuid
 from typing import Dict
 
 import numpy as np
@@ -144,13 +145,16 @@ class FaceService:
             self.logger.error(f'Error when pre-process-face. Details: {x}')
 
     @timeit
-    def extract_embedding(self, img: np.ndarray):
+    def extract_embedding(self, img: np.ndarray, is_estimate_pose: bool = False):
         """
         :param img:
         :return:
         """
         # detect faces
         img, faces = self.pre_process_img(img)
+
+        img_id = f'{uuid.uuid4()}'
+        cv2.imwrite(f'./test_images/{img_id}-original.jpg', img)
 
         self.logger.info(f'Total faces detected: {len(faces)}')
         if len(faces) <= 0:
@@ -162,12 +166,12 @@ class FaceService:
         landmarks = box['landmarks']
 
         # check face pose
-        if not self.pose_estimator.estimate(img, box, landmarks):
+        if is_estimate_pose and not self.pose_estimator.estimate(img, box, landmarks):
             return -2
 
         # preprocess face before get embeddings
-        # todo:
         crop_img = self.pre_process_face(img, box)
+        cv2.imwrite(f'./test_images/{img_id}-crop.jpg', crop_img)
 
         # extract embedding
         emb = self.recognition.get_embedding(crop_img)
