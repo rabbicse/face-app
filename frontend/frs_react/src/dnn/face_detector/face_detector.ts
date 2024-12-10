@@ -14,6 +14,7 @@
  * limitations under the License.
  * =============================================================================
  */
+import { ImageSize } from '../shared/interfaces/common';
 import { Face, FaceDetectorInput, MediaPipeFaceDetectorMediaPipeEstimationConfig, MediaPipeFaceDetectorTfjsEstimationConfig } from './types';
 
 /**
@@ -29,6 +30,7 @@ export interface FaceDetector {
      */
     estimateFaces(
         input: FaceDetectorInput,
+        imaageSize: ImageSize,
         estimationConfig?: MediaPipeFaceDetectorMediaPipeEstimationConfig | MediaPipeFaceDetectorTfjsEstimationConfig): Promise<Face[]>;
 
     /**

@@ -166,11 +166,13 @@ export class MediaPipeFaceDetectorTfjs implements FaceDetector {
             name: MEDIAPIPE_FACE_DETECTOR_KEYPOINTS[i]
           }));
         const box = detection.locationData.relativeBoundingBox;
-        for (const key of ['width', 'xMax', 'xMin'] as const) {
-          box[key] *= imageSize.width;
-        }
-        for (const key of ['height', 'yMax', 'yMin'] as const) {
-          box[key] *= imageSize.height;
+        if (box !== undefined) {
+          for (const key of ['width', 'xMax', 'xMin'] as const) {
+            box[key] *= imageSize.width;
+          }
+          for (const key of ['height', 'yMax', 'yMin'] as const) {
+            box[key] *= imageSize.height;
+          }
         }
         return { keypoints, box };
       }));
@@ -199,14 +201,8 @@ export class MediaPipeFaceDetectorTfjs implements FaceDetector {
 // }
 
 export async function load() {
-  // const config = validateModelConfig(modelConfig);
-
-  // const detectorFromTFHub = typeof config.detectorModelUrl === 'string' &&
-  //     (config.detectorModelUrl.indexOf('https://tfhub.dev') > -1);
-
   const detectorModel = await tfconv.loadGraphModel(
     constants.DEFAULT_DETECTOR_MODEL_URL_FULL_SPARSE, { fromTFHub: true });
 
-  return new MediaPipeFaceDetectorTfjs(
-    'full', detectorModel, 100);
+  return new MediaPipeFaceDetectorTfjs('full', detectorModel, 100);
 }

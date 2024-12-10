@@ -22,7 +22,7 @@ import {MediaPipeFaceDetectorTfjsEstimationConfig, MediaPipeFaceDetectorTfjsMode
 // Non-sparse full model is not currently used but is available if needed for
 // future use cases.
 export const DEFAULT_DETECTOR_MODEL_URL_FULL_SPARSE =
-    'https://tfhub.dev/mediapipe/tfjs-model/face_detection/full/1';
+    '/models/face-detection/full';
 export const DEFAULT_DETECTOR_MODEL_URL_SHORT =
     'https://tfhub.dev/mediapipe/tfjs-model/face_detection/short/1';
 export const SHORT_RANGE_DETECTOR_ANCHOR_CONFIG: AnchorConfig = {
