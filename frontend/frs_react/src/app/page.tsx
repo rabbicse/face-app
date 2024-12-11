@@ -11,7 +11,7 @@ import TfFaceDetection from "@/components/TfFaceDetection";
 export default function Home() {
   return (
     <div>
-      <h1>Face Detection with TensorFlow.js</h1>
+      {/* <h1>Face Detection with TensorFlow.js</h1> */}
       {/* <MyFaceDetection /> */}
       {/* <TfBlazeFaceDetection /> */}
       <TfFaceDetection />

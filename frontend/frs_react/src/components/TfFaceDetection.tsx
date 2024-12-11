@@ -160,28 +160,37 @@ const TfFaceDetection = () => {
     return (
         <>
             <div style={{ display: "flex", width: "100%", height: "90vh" }}>
-                <div style={{ flex: 1, position: "relative", width: "100%", height: "90vh" }}>
-                    <video
-                        ref={videoRef}
-                        style={{
-                            display: "none",
-                            width: "auto", height: "100%"
-                        }}
-                    />
-                    <canvas
-                        ref={canvasRef}
-                        style={{
-                            position: "absolute",
-                            display: "block",
-                            width: "auto",
-                            height: "100%",
-                        }}
-                    />
+
+                <div style={{ flex: 1, position: "relative", width: "100%", height: "80%" }}>
+                    <div className="p-1">
+                        <Card>
+                            <CardContent className="flex aspect-square items-center justify-center p-6">
+                                <video
+                                    ref={videoRef}
+                                    style={{
+                                        display: "none",
+                                        width: "auto", height: "100%"
+                                    }}
+                                />
+                                <canvas
+                                    ref={canvasRef}
+                                    style={{
+                                        position: "absolute",
+                                        display: "block",
+                                        width: "auto",
+                                        height: "100%",
+                                    }}
+                                />
+
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
 
                 <div style={{
                     flex: 1,
                     display: "flex",
+                    width: "40%",
                     justifyContent: "center",
                     alignItems: "center",
                     backgroundColor: "#f4f4f4"
