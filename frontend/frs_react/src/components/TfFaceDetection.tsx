@@ -6,6 +6,8 @@ import { setupBackend } from "@/dnn/tf-backend";
 import { BoundingBox } from "@/dnn/shared/interfaces/shapes";
 import { sendCroppedFace } from "@/api/clients/faceRecognitionClient";
 import { drawDetection } from "@/dnn/shared/drawing_utils";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Card, CardContent } from "./ui/card";
 
 const cropFace = (image: HTMLVideoElement, box: BoundingBox): Promise<Blob> => {
     return new Promise((resolve) => {
@@ -13,20 +15,28 @@ const cropFace = (image: HTMLVideoElement, box: BoundingBox): Promise<Blob> => {
         const faceCanvas = document.createElement("canvas");
         const faceCtx = faceCanvas.getContext("2d");
 
-        faceCanvas.width = Math.abs(image.videoWidth);
-        faceCanvas.height = Math.abs(image.videoHeight);
+        // const xMin = Math.max(Math.abs(box.xMin) - (box.width / 4), 0);
+        // const yMin = Math.max(Math.abs(box.yMin) - (box.height / 4), 0);
+        // const xMax = Math.min(Math.abs(box.xMax) + (box.width / 4) + (box.width / 4), image.width);
+        // const yMax = Math.min(Math.abs(box.yMax) + (box.height / 8) + (box.height / 4), image.height);
+        // const width = Math.abs(xMax - xMin);
+        // const height = Math.abs(yMax - yMin);
+
+        const xMin = Math.max(box.xMin - (box.width / 4), 0);
+        const yMin = Math.max(Math.abs(box.yMin) - (box.height / 2), 0);
+        const width = box.width + (2 * (box.width / 4));// + (box.width / 4) + (box.width / 4); //Math.abs(xMax - xMin);
+        const height = box.height + ((box.height / 2) + (box.height / 4)); //Math.abs(yMax - yMin);
+
+        faceCanvas.width = width;
+        faceCanvas.height = height;
 
         // Draw the cropped face onto the temporary canvas
         faceCtx?.drawImage(
             image, // The main canvas containing the video
-            0,
-            // Math.max(Math.abs(box.xMin) - box.width / 2, 0),
-            // Math.max(Math.abs(box.yMin) - box.height / 2, 0),
-            0,
-            // Math.abs(box.width),
-            image.videoWidth,
-            // Math.abs(box.height),
-            image.videoHeight,
+            xMin,
+            yMin,
+            width,
+            height,
             0,
             0,
             faceCanvas.width,
@@ -44,6 +54,23 @@ const TfFaceDetection = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [netDetectionTf, setNetDetectionTf] = useState<MediaPipeFaceDetectorTfjs | null>(null);
+    const [carouselItems, setCarouselItems] = useState([]);
+    const [src, setSrc] = useState(''); // initial src will be empty
+
+    const addCarouselItem = (blob: Blob) => {
+        const imageUrl = URL.createObjectURL(blob); // Convert blob to URL
+        setCarouselItems((prevItems) => {
+            const updatedItems = [...prevItems, { id: Date.now(), image: imageUrl }];
+            // Keep only the last 10 items
+            if (updatedItems.length > 10) {
+                const removedItem = updatedItems.shift(); // Remove the first (oldest) item
+                if (removedItem) {
+                    URL.revokeObjectURL(removedItem.image); // Clean up old blob URL
+                }
+            }
+            return updatedItems;
+        });
+    };
 
     useEffect(() => {
         // Load TensorFlow model
@@ -53,7 +80,6 @@ const TfFaceDetection = () => {
             const model = await load();
             setNetDetectionTf(model);
         };
-        loadModel();
 
         // Initialize video stream
         const startVideo = async () => {
@@ -73,7 +99,10 @@ const TfFaceDetection = () => {
                 };
             }
         };
-        startVideo();
+
+        loadModel().then(() => {
+            startVideo();
+        });
 
         return () => {
             if (videoRef.current && videoRef.current.srcObject) {
@@ -97,14 +126,15 @@ const TfFaceDetection = () => {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
 
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
         // Capture video frame as ImageData
         ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         const predictions = await netDetectionTf.estimateFaces(video, { width: video.videoWidth, height: video.videoHeight }, { flipHorizontal: false });
 
         if (predictions.length > 0) {
-            // console.log(predictions);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // console.log(predictions);            
             for (let i = 0; i < predictions.length; i++) {
                 const detection = predictions[i];
 
@@ -113,9 +143,10 @@ const TfFaceDetection = () => {
 
                 // crop image based on bounding bbox
                 const croppedFace = await cropFace(video, detection.box);
-                // todo: send cropped image python backend
-                const response = await sendCroppedFace(croppedFace);
-                console.log(response);
+                addCarouselItem(croppedFace);
+                // send cropped image python backend
+                // const response = await sendCroppedFace(croppedFace);
+                // console.log(response);
             }
         }
     };
@@ -127,25 +158,54 @@ const TfFaceDetection = () => {
     }, [netDetectionTf]);
 
     return (
-        <div style={{ position: "relative", width: "100%", height: "90vh" }}>
-            <video
-                ref={videoRef}
-                style={{
-                    display: "block",
-                    width: "auto", height: "100%"
-                }}
-            />
-            <canvas
-                ref={canvasRef}
-                style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "auto",
-                    height: "100%",
-                }}
-            />
-        </div>
+        <>
+            <div style={{ display: "flex", width: "100%", height: "90vh" }}>
+                <div style={{ flex: 1, position: "relative", width: "100%", height: "90vh" }}>
+                    <video
+                        ref={videoRef}
+                        style={{
+                            display: "none",
+                            width: "auto", height: "100%"
+                        }}
+                    />
+                    <canvas
+                        ref={canvasRef}
+                        style={{
+                            position: "absolute",
+                            display: "block",
+                            width: "auto",
+                            height: "100%",
+                        }}
+                    />
+                </div>
+
+                <div style={{
+                    flex: 1,
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "#f4f4f4"
+                }}>
+                    <Carousel className="w-full max-w-xs">
+                        <CarouselContent>
+                            {carouselItems.map((item, index) => (
+                                <CarouselItem key={index} className="flex aspect-square items-center justify-center p-6">
+                                    <div className="p-1">
+                                        <Card>
+                                            <CardContent className="flex aspect-square items-center justify-center p-6">
+                                                <img src={item.image} alt={`Carousel Item ${index + 1}`} />
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                </CarouselItem>
+                            ))}
+                        </CarouselContent>
+                        <CarouselPrevious />
+                        <CarouselNext />
+                    </Carousel>
+                </div>
+            </div>
+        </>
     );
 };
 

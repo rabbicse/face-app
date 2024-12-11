@@ -23,17 +23,16 @@ import { convertImageToTensor } from '../shared/convert_image_to_tensor';
 import { createSsdAnchors } from '../shared/create_ssd_anchors';
 import { detectionProjection } from '../shared/detection_projection';
 import { detectorResult } from '../shared/detector_result';
-import { getImageSize, toImageTensor } from '../shared/image_utils';
+import { toImageTensor } from '../shared/image_utils';
 import { ImageToTensorConfig, TensorsToDetectionsConfig } from '../shared/interfaces/config';
 import { Rect } from '../shared/interfaces/shapes';
 import { AnchorTensor, Detection } from '../shared/interfaces/shapes';
 import { nonMaxSuppression } from '../shared/non_max_suppression';
 import { tensorsToDetections } from '../shared/tensors_to_detections';
 import * as constants from './constants'
-import { validateModelConfig } from './detector_utils'
 import { Face, FaceDetectorInput, MediaPipeFaceDetectorTfjsEstimationConfig, MediaPipeFaceDetectorTfjsModelConfig } from '../shared/types'
-import { DEFAULT_DETECTOR_MODEL_URL_SHORT, MEDIAPIPE_FACE_DETECTOR_KEYPOINTS } from './constants';
-import { ImageSize, PixelInput } from '../shared/interfaces/common';
+import { MEDIAPIPE_FACE_DETECTOR_KEYPOINTS } from './constants';
+import { ImageSize } from '../shared/interfaces/common';
 
 function getInputTensorDimensions(input: tf.Tensor3D | ImageData | HTMLVideoElement |
   HTMLImageElement |
@@ -151,7 +150,7 @@ export class MediaPipeFaceDetectorTfjs implements FaceDetector {
     imageSize: ImageSize,
     estimationConfig?: MediaPipeFaceDetectorTfjsEstimationConfig):
     Promise<Face[]> {
-    console.log(`width: ${imageSize.width} height: ${imageSize.height}`);
+    // console.log(`width: ${imageSize.width} height: ${imageSize.height}`);
     // const imageSize = getInputTensorDimensions(image);
     // console.log(imageSize);
     const flipHorizontal =
@@ -182,24 +181,7 @@ export class MediaPipeFaceDetectorTfjs implements FaceDetector {
 /**
  * Loads the MediaPipeFaceDetector model.
  *
- * @param modelConfig ModelConfig object that contains parameters for
- * the MediaPipeFaceDetector loading process. Please find more details of each
- * parameters in the documentation of the `MediaPipeFaceDetectorTfjsModelConfig`
- * interface.
  */
-// export async function load(modelConfig: MediaPipeFaceDetectorTfjsModelConfig) {
-//   const config = validateModelConfig(modelConfig);
-
-//   const detectorFromTFHub = typeof config.detectorModelUrl === 'string' &&
-//     (config.detectorModelUrl.indexOf('https://tfhub.dev') > -1);
-
-//   const detectorModel = await tfconv.loadGraphModel(
-//     config.detectorModelUrl, { fromTFHub: detectorFromTFHub });
-
-//   return new MediaPipeFaceDetectorTfjs(
-//     config.modelType, detectorModel, config.maxFaces);
-// }
-
 export async function load() {
   const detectorModel = await tfconv.loadGraphModel(
     constants.DEFAULT_DETECTOR_MODEL_URL_FULL_SPARSE, { fromTFHub: true });
