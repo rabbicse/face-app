@@ -6,7 +6,9 @@ import cv2
 
 from recognition.arc_face import arc_face
 from utils.vision_utils.decorators import timeit
-from vectoe_db.qdrant_context import VectorDbContext
+from vector_db.qdrant_context import VectorDbContext
+
+# from vectoe_db.qdrant_context import VectorDbContext
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +34,8 @@ def find_images_one_by_one(base_path):
 
 
 emb = load_embeddings(img_path='../samples/480.jpg')
-# vector_db.upsert(vector=emb, name='Mehedi', id=1)
-vector_db.search_embedding(vector=emb)
+vector_db.upsert(vector=emb, name='Mehedi', id=1)
+# vector_db.search_embedding(vector=emb)
 
 
 # id = 1

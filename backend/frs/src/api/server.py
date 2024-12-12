@@ -17,6 +17,7 @@ from utils.vision_utils import log_utils
 from cache.redis_service import RedisCacheService
 
 warnings.filterwarnings("ignore")
+logger = log_utils.LogUtils().get_logger(__name__)
 
 version = "v1"
 app = FastAPI(
@@ -35,15 +36,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logger = log_utils.LogUtils().get_logger(__name__)
-
-face_handler = FaceService(det_model_path=config.DETECTION_MODEL_PATH,
-                           det_model_tar=config.DETECTION_MODEL_TAR_PATH,
-                           det_network=config.DETECTION_NETWORK,
-                           rec_model_path=config.RECOGNITION_MODEL_PATH,
-                           rec_network=config.RECOGNITION_NETWORK,
-                           device=config.DEVICE)
-redis_handler = RedisCacheService()
+# face_handler = FaceService(det_model_path=config.DETECTION_MODEL_PATH,
+#                            det_model_tar=config.DETECTION_MODEL_TAR_PATH,
+#                            det_network=config.DETECTION_NETWORK,
+#                            rec_model_path=config.RECOGNITION_MODEL_PATH,
+#                            rec_network=config.RECOGNITION_NETWORK,
+#                            device=config.DEVICE)
+# redis_handler = RedisCacheService()
 
 
 

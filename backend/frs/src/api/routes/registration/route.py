@@ -1,37 +1,38 @@
-import json
 import logging
-import cv2
-import numpy as np
+
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.params import Depends
-from api.dependency_resolver import get_face_service
+
+from api.dependency_resolver import get_face_service, get_vector_db_context
+from api.model.person import Person
 from api.services.face_service import FaceService
+from utils.vision_utils.utils import convert_photo_to_bgr
+from vector_db.qdrant_context import VectorDbContext
 
 logger = logging.getLogger(__name__)
 register_router = APIRouter()
 
+
 @register_router.post("/")
-async def register(image: UploadFile = File(...),
-                   data: str = Form(...),
-                   service: FaceService = Depends(get_face_service)):
+async def register(
+        person: Person = Depends(Person.as_form), #Person = Form(...),
+        photo: UploadFile = File(...),
+        face_service: FaceService = Depends(get_face_service),
+        vector_db_context: VectorDbContext = Depends(get_vector_db_context)):
     try:
-        photo_data = await image.read()
-        frame = np.frombuffer(photo_data, dtype=np.uint8)
-        frame = cv2.imdecode(frame, cv2.IMREAD_UNCHANGED)
+        logger.info(f'Requesting registration...')
+        photo_data = await photo.read()
+        frame = convert_photo_to_bgr(photo_data)
 
-        if frame.shape[-1] == 4:  # RGBA
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+        logger.info('extracting embeddings...')
+        emb = face_service.extract_embedding(frame)
 
-        if len(frame.shape) == 2:  # Grayscale image
-            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+        if isinstance(emb, int):
+            return {"status": 2, "embedding": str(-3)}
 
-        emb = service.extract_embedding(frame)
+        logger.info(f'inserting vector to database...')
+        vector_db_context.upsert_embedding(vector=emb, person=person)
 
-        person_info = json.loads(data)
-        name = person_info["name"]
-
-        # Insert into Redis (or database) todo:
-        # redis_handler.insert_data(name, emb)
         return {"status": 0, "embedding": emb.tolist()}
     except Exception as x:
         logger.error(f"Error when enrolling by image. Details: {x}")

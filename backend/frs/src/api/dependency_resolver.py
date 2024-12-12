@@ -2,6 +2,7 @@ from api import config
 from api.services.face_service import FaceService
 from cache.cache_service import CacheService
 from cache.redis_service import RedisCacheService
+from vector_db.qdrant_context import VectorDbContext
 
 
 def get_face_service() -> FaceService:
@@ -14,3 +15,6 @@ def get_face_service() -> FaceService:
 
 def get_cache_service() -> RedisCacheService:
     return RedisCacheService()
+
+def get_vector_db_context() -> VectorDbContext:
+    return VectorDbContext()
