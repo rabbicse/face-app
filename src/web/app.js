@@ -28,8 +28,10 @@ app.get('/matchtf', (req, res) => {
 })
 
 
-var key = fs.readFileSync('key.pem');
-var cert = fs.readFileSync('cert.pem');
+// var key = fs.readFileSync('key.pem');
+var key = fs.readFileSync('server.key');
+// var cert = fs.readFileSync('cert.pem');
+var cert = fs.readFileSync('server.cert');
 var options = {
   key: key,
   cert: cert
