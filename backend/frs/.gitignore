@@ -145,3 +145,7 @@ cython_debug/
 # MacOS
 .DS_Store
 .DS_Store/
+
+# log files
+*.log
+*.log.[0-9]{0,3}
