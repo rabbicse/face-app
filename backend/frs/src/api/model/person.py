@@ -11,7 +11,9 @@ class Person(BaseModel):
     email: str | None
     phone: str | None
     age: int | None
-    description: str | None
+    city: str | None
+    country: str | None
+    address: str | None
 
     @classmethod
     def as_form(cls,
@@ -20,6 +22,15 @@ class Person(BaseModel):
                 email: str | None = Form(...),
                 phone: str | None = Form(...),
                 age: int | None = Form(...),
-                description: str | None = Form(...),
+                city: str | None = Form(...),
+                country: str | None = Form(...),
+                address: str | None = Form(...),
                 ) -> 'Person':
-        return cls(person_id=person_id, name=name, email=email, phone=phone, age=age, description=description)
+        return cls(person_id=person_id,
+                   name=name,
+                   email=email,
+                   phone=phone,
+                   age=age,
+                   city=city,
+                   country=country,
+                   address=address)
