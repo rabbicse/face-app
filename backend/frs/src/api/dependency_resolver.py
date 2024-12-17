@@ -13,8 +13,12 @@ def get_face_service() -> FaceService:
                        rec_network=config.RECOGNITION_NETWORK,
                        device=config.DEVICE)
 
+
 def get_cache_service() -> RedisCacheService:
     return RedisCacheService()
 
+
 def get_vector_db_context() -> VectorDbContext:
-    return VectorDbContext()
+    return VectorDbContext(host=config.QDRANT_HOST,
+                           port=config.QDRANT_PORT,
+                           collection_name=config.QDRANT_COLLECTION_NAME)

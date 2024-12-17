@@ -36,14 +36,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# face_handler = FaceService(det_model_path=config.DETECTION_MODEL_PATH,
-#                            det_model_tar=config.DETECTION_MODEL_TAR_PATH,
-#                            det_network=config.DETECTION_NETWORK,
-#                            rec_model_path=config.RECOGNITION_MODEL_PATH,
-#                            rec_network=config.RECOGNITION_NETWORK,
-#                            device=config.DEVICE)
-# redis_handler = RedisCacheService()
-
 
 
 if __name__ == "__main__":

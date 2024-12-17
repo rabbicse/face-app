@@ -7,16 +7,21 @@ from qdrant_client.http.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 
 from api.model.person import Person
+from utils.vision_utils.singleton_decorator import SingletonDecorator
 
 logger = logging.getLogger(__name__)
 
 
+@SingletonDecorator
 class VectorDbContext:
-    def __init__(self):
-        self.client = QdrantClient(url="http://192.168.97.67:6333")
+    def __init__(self, host: str = 'localhost', port: int = 6333, collection_name='face_collection'):
+        # initiate qdrant client
+        self.client = QdrantClient(url=f"http://{host}:{port}")
 
-        self.collection_name = "face_collection"
+        # set collection name
+        self.collection_name = collection_name
 
+        # if not exists
         if not self.client.collection_exists(self.collection_name):
             self.client.create_collection(
                 collection_name=self.collection_name,
