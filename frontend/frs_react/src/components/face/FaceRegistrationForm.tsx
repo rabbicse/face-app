@@ -3,16 +3,31 @@
 import React, { useEffect, useRef, useState } from "react";
 import { load, MediaPipeFaceDetectorTfjs } from "@/dnn/face_detector/detector";
 import { setupBackend } from "@/dnn/tf-backend";
-import { sendCroppedFace } from "@/api/clients/faceRecognitionClient";
+import { registerFace } from "@/api/clients/faceRecognitionClient";
 import { drawDetection } from "@/dnn/shared/drawing_utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { cropFace } from "@/dnn/shared/vision";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Person } from "@/models/person";
 
 
 const FaceRegistrationForm = () => {
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [netDetectionTf, setNetDetectionTf] = useState<MediaPipeFaceDetectorTfjs | null>(null);
+    const [netDetectionTf, setNetDetectionTf] = useState<MediaPipeFaceDetectorTfjs | null>(null);    
+
+    const person: Person = {
+        personId: 123,
+        name: `${searchParams.get("fullname")}`,
+        email: `${searchParams.get("email")}`,
+        age: 30,
+        phone: `0111222`,                
+        city: 'Dhaka',
+        country: 'Bangladesh',
+        address: 'Dhaka'
+    };
 
     useEffect(() => {
         // Load TensorFlow model
@@ -86,8 +101,8 @@ const FaceRegistrationForm = () => {
                 // crop image based on bounding bbox
                 const croppedFace = await cropFace(video, detection.box);
                 // send cropped image python backend
-                // const response = await sendCroppedFace(croppedFace);
-                // console.log(response);
+                const response = await registerFace(croppedFace, person);
+                console.log(response);
             }
         }
     };
@@ -104,7 +119,7 @@ const FaceRegistrationForm = () => {
                 <video
                     ref={videoRef}
                     style={{
-                        display: "none",
+                        display: "block",
                         width: "auto", height: "80vh"
                     }}
                 />
@@ -117,7 +132,6 @@ const FaceRegistrationForm = () => {
                         height: "80vh",
                     }}
                 />
-
             </CardContent>
         </Card>
     );

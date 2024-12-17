@@ -1,4 +1,4 @@
-import { RegistrationFrom } from "@/components/RegistrationFrom"
+import { RegistrationFrom } from "@/components/forms/RegistrationFrom"
 
 export default function Page() {
   return (
