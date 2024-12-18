@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { LuScanFace } from "react-icons/lu";
 
 export function LoginForm() {
   return (
@@ -39,16 +40,24 @@ export function LoginForm() {
             </div>
             <Input id="password" type="password" required />
           </div>
-          <Button type="submit" className="w-full">
-            Login
-          </Button>
-          <Button variant="outline" className="w-full">
+          <div className="flex items-center justify-between space-x-4">
+            {/* Login Button */}
+            <Button type="submit" className="w-full">
+              Login
+            </Button>
+
+            {/* Scan Face Button */}
+            <Link href="/face/login">
+              <LuScanFace />
+            </Link>
+          </div>
+          {/* <Button variant="outline" className="w-full">
             Login with Google
-          </Button>
+          </Button> */}
         </div>
         <div className="mt-4 text-center text-sm">
           Don&apos;t have an account?{" "}
-          <Link href="#" className="underline">
+          <Link href="/registration" className="underline">
             Sign up
           </Link>
         </div>

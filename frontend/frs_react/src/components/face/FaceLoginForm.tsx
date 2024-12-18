@@ -3,17 +3,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import { load, MediaPipeFaceDetectorTfjs } from "@/dnn/face_detector/detector";
 import { setupBackend } from "@/dnn/tf-backend";
-import { registerFace } from "@/api/clients/faceRecognitionClient";
+import { loginByFace } from "@/api/clients/faceRecognitionClient";
 import { drawDetection } from "@/dnn/shared/drawing_utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { cropFace } from "@/dnn/shared/vision";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Person } from "@/models/person";
 import { FaceRegResponse } from "@/models/responses";
 import { Loader2 } from "lucide-react";
 
 
-const FaceRegistrationForm = () => {
+const FaceLoginForm = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -21,20 +20,10 @@ const FaceRegistrationForm = () => {
     const [netDetectionTf, setNetDetectionTf] = useState<MediaPipeFaceDetectorTfjs | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [timer, setTimer] = useState(15); // Timer countdown
+    const [timer, setTimer] = useState(5); // Timer countdown
     const [showTimer, setShowTimer] = useState(false); // Toggle to show timer UI
     const animationFrameRef = useRef<number | null>(null);
 
-    const person: Person = {
-        personId: 123,
-        name: `${searchParams.get("fullname")}`,
-        email: `${searchParams.get("email")}`,
-        age: 30,
-        phone: `0111222`,
-        city: 'Dhaka',
-        country: 'Bangladesh',
-        address: 'Dhaka'
-    };
 
     const stopVideo = () => {
         if (videoRef.current && videoRef.current.srcObject) {
@@ -90,7 +79,7 @@ const FaceRegistrationForm = () => {
                     // crop image based on bounding bbox
                     const croppedFace = await cropFace(video, detection.box);
                     // send cropped image python backend
-                    const response: FaceRegResponse = await registerFace(croppedFace, person);
+                    const response: FaceRegResponse = await loginByFace(croppedFace);
                     if (response != null && response.status == 0) {
                         return true;
                     }
@@ -163,7 +152,6 @@ const FaceRegistrationForm = () => {
     };
 
     useEffect(() => {
-        setIsLoading(true);
         loadModel()
             .then(() => {
                 startVideo();
@@ -208,7 +196,7 @@ const FaceRegistrationForm = () => {
                             ref={canvasRef}
                             style={{
                                 position: "absolute",
-                                display: "none",
+                                display: isProcessing ? "block" : "none",
                                 width: "auto",
                                 height: "80vh",
                             }}
@@ -231,4 +219,4 @@ const FaceRegistrationForm = () => {
     );
 };
 
-export default FaceRegistrationForm;
+export default FaceLoginForm;

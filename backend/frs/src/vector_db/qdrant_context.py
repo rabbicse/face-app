@@ -58,4 +58,5 @@ class VectorDbContext:
             limit=10
         ).points
 
-        print(search_result)
+        logger.info(f'qdrant search result: {search_result}')
+        return search_result

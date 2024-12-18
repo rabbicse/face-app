@@ -146,3 +146,4 @@ cython_debug/
 .idea/
 volumes/
 qdrant_data/
+node_modules/

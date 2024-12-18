@@ -40,9 +40,6 @@ export const registerFace = async (blob: Blob, person: Person) => {
         formData.append("country", `${person.country}`);
         formData.append("address", `Test Address`);
 
-        console.log(`Form data: ${JSON.stringify(formData)}`);
-
-
         // Send the form data using fetch
         const response = await fetch("http://localhost:5000/api/v1/register/", {
             method: "POST",
@@ -59,7 +56,32 @@ export const registerFace = async (blob: Blob, person: Person) => {
         }
 
         const data = await response.json();
-        console.log("Uploaded face:", data);
+        // console.log("Uploaded face:", data);
+        return data;
+    } catch (error) {
+        console.error("Error uploading face:", error);
+    }
+};
+
+
+export const loginByFace = async (blob: Blob) => {
+    try {
+        const photo = new File([blob], "face.jpg", { type: "image/jpeg" });
+        const formData = new FormData();
+        formData.append("photo", photo);
+
+        // Send the form data using fetch
+        const response = await fetch("http://localhost:5000/api/v1/login/", {
+            method: "POST",
+            body: formData,
+        });
+
+        // Handle the response
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
         return data;
     } catch (error) {
         console.error("Error uploading face:", error);
