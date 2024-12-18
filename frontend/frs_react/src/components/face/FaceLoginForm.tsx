@@ -14,7 +14,6 @@ import { Loader2 } from "lucide-react";
 
 const FaceLoginForm = () => {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [netDetectionTf, setNetDetectionTf] = useState<MediaPipeFaceDetectorTfjs | null>(null);
@@ -152,12 +151,8 @@ const FaceLoginForm = () => {
     };
 
     useEffect(() => {
-        loadModel()
-            .then(() => {
-                startVideo();
-            }).then(() => setIsLoading(false));
-
-        return stopVideo();
+        startVideo();
+        loadModel().then(() => setIsLoading(false));
     }, []);
 
 
@@ -171,7 +166,7 @@ const FaceLoginForm = () => {
     useEffect(() => {
         if (timer === 0) {
             stopVideo();
-            router.push("/login");
+            router.push("/dashboard");
         }
     }, [timer, router]);
 

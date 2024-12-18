@@ -14,6 +14,7 @@ DEVICE = 'cpu'
 
 
 # vector database config
-QDRANT_HOST = '192.168.97.67'
+# QDRANT_HOST = '192.168.97.67'
+QDRANT_HOST = 'localhost'
 QDRANT_PORT = 6333
 QDRANT_COLLECTION_NAME = 'face_collection'
