@@ -10,10 +10,10 @@ DETECTION_MODEL_TAR_PATH = os.path.abspath("../../models/mobilenetV1X0.25_pretra
 RECOGNITION_MODEL_PATH = os.path.abspath('../../models/backbone_glint360k_r100.pth')
 RECOGNITION_NETWORK = 'r100'
 # DEVICE = 'cuda:0'
-DEVICE = 'cuda'
+DEVICE = 'cpu'
 
 
 # vector database config
-QDRANT_HOST = 'localhost'
+QDRANT_HOST = '192.168.97.67'
 QDRANT_PORT = 6333
 QDRANT_COLLECTION_NAME = 'face_collection'

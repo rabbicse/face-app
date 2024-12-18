@@ -13,22 +13,30 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { Loader2 } from "lucide-react"
 
 export function RegistrationFrom() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [fullname, setFullname] = useState("");
   const [password, setPassword] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleRegisterFace = async () => {
     router.push(`/face/registration`);
   };
 
   const handleRegistration = async () => {
+    setIsProcessing(true);
     const query = new URLSearchParams({ email, fullname });
-    router.push(`/face/registration?${query}`);
+    router.push(`/face/registration?${query}`)
+    setIsProcessing(false);
   };
+
+  useEffect(() => {
+    router.prefetch(`/face/registration`);
+  }, []);
 
   return (
     <Card>
@@ -60,10 +68,14 @@ export function RegistrationFrom() {
         </div>
       </CardContent>
       <CardFooter>
-        <div className="grid grid-cols-2 gap-6">
-          <Button className="w-full" onClick={handleRegistration}>Create account</Button>
-          <Button className="w-full" onClick={handleRegisterFace}>Register Face</Button>
-        </div>
+        {/* <div className="grid"> */}
+          <Button className="w-full" onClick={handleRegistration}>
+            {isProcessing ? (
+              <Loader2 className="animate-spin" />
+            ) : ("Register")}
+          </Button>
+          {/* <Button className="w-full blue-700" onClick={handleRegisterFace}>Register Face</Button> */}
+        {/* </div> */}
       </CardFooter>
     </Card>
   )

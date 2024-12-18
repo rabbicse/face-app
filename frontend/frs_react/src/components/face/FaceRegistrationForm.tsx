@@ -10,6 +10,7 @@ import { cropFace } from "@/dnn/shared/vision";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Person } from "@/models/person";
 import { FaceRegResponse } from "@/models/responses";
+import { Loader2 } from "lucide-react";
 
 
 const FaceRegistrationForm = () => {
@@ -18,7 +19,10 @@ const FaceRegistrationForm = () => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [netDetectionTf, setNetDetectionTf] = useState<MediaPipeFaceDetectorTfjs | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [timer, setTimer] = useState(15); // Timer countdown
+    const [showTimer, setShowTimer] = useState(false); // Toggle to show timer UI
     const animationFrameRef = useRef<number | null>(null);
 
     const person: Person = {
@@ -43,13 +47,13 @@ const FaceRegistrationForm = () => {
 
     const detectFrame = async () => {
         if (!videoRef.current || !canvasRef.current || !netDetectionTf) {
-            console.log(`videoref: ${videoRef.current} canvasref: ${canvasRef.current} net: ${netDetectionTf}`);
+            // console.log(`videoref: ${videoRef.current} canvasref: ${canvasRef.current} net: ${netDetectionTf}`);
             return false;
         }
 
         const video = videoRef.current;
         if (video.videoWidth == 0 || video.videoHeight == 0) {
-            console.log(`video wxh: ${video.width} x ${video.height}`);
+            // console.log(`video wxh: ${video.width} x ${video.height}`);
             return false;
         }
 
@@ -57,58 +61,75 @@ const FaceRegistrationForm = () => {
         const ctx = canvas.getContext("2d");
 
         if (!ctx) {
-            console.log(`CTX: ${ctx}`);
+            // console.log(`CTX: ${ctx}`);
             return false;
         }
 
-        // Set canvas dimensions to match the video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        try {
+            // Set canvas dimensions to match the video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Capture video frame as ImageData
-        ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // Capture video frame as ImageData
+            ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        const predictions = await netDetectionTf.estimateFaces(video, { width: video.videoWidth, height: video.videoHeight }, { flipHorizontal: false });
+            setIsProcessing(true);
 
-        if (predictions.length > 0) {
-            // console.log(predictions);            
-            for (let i = 0; i < predictions.length; i++) {
-                const detection = predictions[i];
+            const predictions = await netDetectionTf.estimateFaces(video, { width: video.videoWidth, height: video.videoHeight }, { flipHorizontal: false });
 
-                // draw over canvas for visualization
-                drawDetection(ctx, detection);
+            if (predictions.length > 0) {
+                // console.log(predictions);            
+                for (let i = 0; i < predictions.length; i++) {
+                    const detection = predictions[i];
 
-                // crop image based on bounding bbox
-                const croppedFace = await cropFace(video, detection.box);
-                // send cropped image python backend
-                const response: FaceRegResponse = await registerFace(croppedFace, person);
-                console.log(response.status);
-                if (response.status == 0) {
-                    return true;
+                    // draw over canvas for visualization
+                    drawDetection(ctx, detection);
+
+                    // crop image based on bounding bbox
+                    const croppedFace = await cropFace(video, detection.box);
+                    // send cropped image python backend
+                    const response: FaceRegResponse = await registerFace(croppedFace, person);
+                    if (response != null && response.status == 0) {
+                        return true;
+                    }
                 }
             }
+        } catch (ex) {
+            console.log(`Error when process frame! Details: ${ex}`)
+        } finally {
+            setIsProcessing(false);
         }
         return false;
     };
 
     const renderFrame = async () => {
-        setIsProcessing(true);
         try {
             console.log(`rendering frame...`);
             let result = await detectFrame();
             console.log(result);
             if (result === true) {
-                stopVideo();
-                cancelAnimationFrame(animationFrameRef.current!);
+
+                // Simulate successful face enrollment
+                setShowTimer(true);
+
+                // Start the timer countdown
+                const timerInterval = setInterval(() => {
+                    setTimer((prev) => {
+                        if (prev <= 1) {
+                            clearInterval(timerInterval);
+                            cancelAnimationFrame(animationFrameRef.current!);
+                            return 0;
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
                 return;
             }
             animationFrameRef.current = requestAnimationFrame(renderFrame);
         } catch (ex) {
             console.error(`Error when rendering frame: ${ex}`);
-        } finally {
-            setIsProcessing(false);
         }
     };
 
@@ -119,7 +140,6 @@ const FaceRegistrationForm = () => {
 
         const model = await load();
         setNetDetectionTf(model);
-        console.log(`model: ${model}`);
     };
 
     // Initialize video stream
@@ -146,7 +166,7 @@ const FaceRegistrationForm = () => {
         loadModel()
             .then(() => {
                 startVideo();
-            });
+            }).then(() => setIsLoading(false));
 
         return stopVideo();
     }, []);
@@ -158,25 +178,53 @@ const FaceRegistrationForm = () => {
         }
     }, [netDetectionTf]);
 
+    // Navigate to the login page when the timer reaches 0
+    useEffect(() => {
+        if (timer === 0) {
+            stopVideo();
+            router.push("/login");
+        }
+    }, [timer, router]);
+
     return (
         <Card>
-            <CardContent className="flex aspect-square items-center justify-center p-6">
-                <video
-                    ref={videoRef}
-                    style={{
-                        display: "block",
-                        width: "auto", height: "80vh"
-                    }}
-                />
-                <canvas
-                    ref={canvasRef}
-                    style={{
-                        position: "absolute",
-                        display: "block",
-                        width: "auto",
-                        height: "80vh",
-                    }}
-                />
+            <CardContent className="relative flex aspect-square items-center justify-center p-6">
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+                        <p className="mt-2 text-gray-600">Initializing...</p>
+                    </div>
+                ) : (
+                    <>
+                        <video
+                            ref={videoRef}
+                            style={{
+                                display: "block",
+                                width: "auto", height: "80vh"
+                            }}
+                        />
+                        <canvas
+                            ref={canvasRef}
+                            style={{
+                                position: "absolute",
+                                display: isProcessing ? "block" : "none",
+                                width: "auto",
+                                height: "80vh",
+                            }}
+                        />
+
+                        {/* Timer Animation */}
+                        {showTimer && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-50">
+                                <div className="text-white text-xl font-bold mb-4">
+                                    Redirecting in {timer} seconds...
+                                </div>
+                                {/* Circular Progress Animation */}
+                                <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                        )}
+                    </>
+                )}
             </CardContent>
         </Card>
     );

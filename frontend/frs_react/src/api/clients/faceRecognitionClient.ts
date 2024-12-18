@@ -40,9 +40,6 @@ export const registerFace = async (blob: Blob, person: Person) => {
         formData.append("country", `${person.country}`);
         formData.append("address", `Test Address`);
 
-        console.log(`Form data: ${JSON.stringify(formData)}`);
-
-
         // Send the form data using fetch
         const response = await fetch("http://localhost:5000/api/v1/register/", {
             method: "POST",
@@ -59,7 +56,7 @@ export const registerFace = async (blob: Blob, person: Person) => {
         }
 
         const data = await response.json();
-        console.log("Uploaded face:", data);
+        // console.log("Uploaded face:", data);
         return data;
     } catch (error) {
         console.error("Error uploading face:", error);

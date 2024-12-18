@@ -33,7 +33,7 @@ async def register(
         logger.info(f'inserting vector to database...')
         vector_db_context.upsert_embedding(vector=emb, person=person)
 
-        return {"status": 0, "embedding": emb.tolist()}
+        return {"status": 0, "message": "Face enrolled successfully!"}
     except Exception as x:
         logger.error(f"Error when enrolling by image. Details: {x}")
         raise HTTPException(status_code=500, detail="Not a valid image!")
