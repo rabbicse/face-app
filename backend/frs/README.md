@@ -1,4 +1,20 @@
-# FRS Service
+# Face Recognition System Backend (FRS)
+Welcome to the Face Recognition System (FRS) Backend, a robust and efficient face detection and recognition service powered by cutting-edge technologies.
+
+🚀 Features
+- Face Detection: Detects and localizes faces within images.
+- Face Recognition: Identifies individuals using face embeddings.
+- Keypoint Extraction: Extracts facial landmarks for additional processing.
+- Fast and Scalable: Designed to handle large volumes of data with low latency.
+- Modular Design: Easily extensible for future enhancements.
+
+🛠️ Technology Stack
+- Framework: FastAPI (Python)
+- Machine Learning: PyTorch
+- RDBMS: PostgreSQL
+- Vector Database: Qdrant
+- Containerization: Docker
+
 ## Prerequisites
 - Python 3.9
 - Pytorch
