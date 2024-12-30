@@ -23,6 +23,7 @@ const FaceLoginForm = () => {
     const [showTimer, setShowTimer] = useState(false); // Toggle to show timer UI
     const animationFrameRef = useRef<number | null>(null);
     const [faceLoginWorker, setFaceLoginWorker] = useState<Worker | null>(null);
+    const [frsStatus, setFrsStatus] = useState(false);
 
     // const faceLoginworker = new Worker('/workers/faceloginworker.ts');
 
@@ -95,17 +96,28 @@ const FaceLoginForm = () => {
                     // draw over canvas for visualization
                     drawDetection(ctx, detection);
 
-                    // // crop image based on bounding bbox
-                    const croppedFace = await cropFace(video, detection.box);
+                    if (frsStatus) {
+                        return true;
+                    }
 
-                    // console.log(faceLoginWorker);
+                    // crop image based on bounding bbox
+                    const croppedFace = await cropFace(video, detection.box);
 
                     if (!faceLoginWorker) {
                         console.log(`Web worker undefined...`);
-                        return;
+                        return false;
                     }
 
                     faceLoginWorker.postMessage({ blob: croppedFace });
+
+                    faceLoginWorker.onmessage = (e) => {
+                        console.log(`Message received from worker: ${JSON.stringify(e.data)}`);
+                        if (e.data.status === true) {
+                            console.log(`e.data.status: ${e.data.status}`);
+                            setFrsStatus(true);
+                        }
+                    };
+
                     // // send cropped image python backend
                     // const response: FaceRegResponse = await loginByFace(croppedFace);
                     // if (response != null && response.status == 0) {
@@ -125,8 +137,9 @@ const FaceLoginForm = () => {
         try {
             // console.log(`rendering frame...`);
             let result = await detectFrame();
+            console.log(`frs status: ${frsStatus}`);
             // console.log(result);
-            if (result === true) {
+            if (result === true || frsStatus === true) {
 
                 // Simulate successful face enrollment
                 setShowTimer(true);
@@ -189,7 +202,7 @@ const FaceLoginForm = () => {
         if (netDetectionTf) {
             animationFrameRef.current = requestAnimationFrame(renderFrame);
         }
-    }, [netDetectionTf]);
+    }, [netDetectionTf, frsStatus]);
 
     // Navigate to the login page when the timer reaches 0
     useEffect(() => {
@@ -212,7 +225,7 @@ const FaceLoginForm = () => {
                         <video
                             ref={videoRef}
                             style={{
-                                display: "block",
+                                display: "none",
                                 width: "auto", height: "80vh"
                             }}
                         />
@@ -220,7 +233,7 @@ const FaceLoginForm = () => {
                             ref={canvasRef}
                             style={{
                                 position: "absolute",
-                                display: isProcessing ? "block" : "none",
+                                display: "block",
                                 width: "auto",
                                 height: "80vh",
                             }}
