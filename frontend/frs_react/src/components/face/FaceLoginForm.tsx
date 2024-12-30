@@ -22,6 +22,22 @@ const FaceLoginForm = () => {
     const [timer, setTimer] = useState(5); // Timer countdown
     const [showTimer, setShowTimer] = useState(false); // Toggle to show timer UI
     const animationFrameRef = useRef<number | null>(null);
+    const [faceLoginWorker, setFaceLoginWorker] = useState<Worker | null>(null);
+
+    // const faceLoginworker = new Worker('/workers/faceloginworker.ts');
+
+    useEffect(() => {
+        console.log(`trying to initialize worker`);
+        if (typeof window !== "undefined") {
+            console.log(`entering worker creation...`);
+            const worker = new Worker(new URL('@/workers/faceloginworker.ts', import.meta.url));
+            setFaceLoginWorker(worker);
+        }
+
+        return () => {
+            faceLoginWorker?.terminate();
+        };
+    }, []);
 
 
     const stopVideo = () => {
@@ -53,6 +69,10 @@ const FaceLoginForm = () => {
             return false;
         }
 
+        if (isLoading) {
+            setIsLoading(false);
+        }
+
         try {
             // Set canvas dimensions to match the video
             canvas.width = video.videoWidth;
@@ -75,13 +95,22 @@ const FaceLoginForm = () => {
                     // draw over canvas for visualization
                     drawDetection(ctx, detection);
 
-                    // crop image based on bounding bbox
+                    // // crop image based on bounding bbox
                     const croppedFace = await cropFace(video, detection.box);
-                    // send cropped image python backend
-                    const response: FaceRegResponse = await loginByFace(croppedFace);
-                    if (response != null && response.status == 0) {
-                        return true;
+
+                    // console.log(faceLoginWorker);
+
+                    if (!faceLoginWorker) {
+                        console.log(`Web worker undefined...`);
+                        return;
                     }
+
+                    faceLoginWorker.postMessage({ blob: croppedFace });
+                    // // send cropped image python backend
+                    // const response: FaceRegResponse = await loginByFace(croppedFace);
+                    // if (response != null && response.status == 0) {
+                    //     return true;
+                    // }
                 }
             }
         } catch (ex) {
@@ -94,9 +123,9 @@ const FaceLoginForm = () => {
 
     const renderFrame = async () => {
         try {
-            console.log(`rendering frame...`);
+            // console.log(`rendering frame...`);
             let result = await detectFrame();
-            console.log(result);
+            // console.log(result);
             if (result === true) {
 
                 // Simulate successful face enrollment
