@@ -10,6 +10,7 @@ import { cropFace } from "@/dnn/shared/vision";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FaceRegResponse } from "@/models/responses";
 import { Loader2 } from "lucide-react";
+import { Person } from "@/models/person";
 
 
 const FaceLoginForm = () => {
@@ -24,6 +25,7 @@ const FaceLoginForm = () => {
     const animationFrameRef = useRef<number | null>(null);
     const [faceLoginWorker, setFaceLoginWorker] = useState<Worker | null>(null);
     const [frsStatus, setFrsStatus] = useState(false);
+    const [person, setPerson] = useState<Person | null>(null);
 
     // const faceLoginworker = new Worker('/workers/faceloginworker.ts');
 
@@ -51,6 +53,8 @@ const FaceLoginForm = () => {
     }
 
     const detectFrame = async () => {
+        if (frsStatus === true) return;
+
         if (!videoRef.current || !canvasRef.current || !netDetectionTf) {
             // console.log(`videoref: ${videoRef.current} canvasref: ${canvasRef.current} net: ${netDetectionTf}`);
             return false;
@@ -114,15 +118,13 @@ const FaceLoginForm = () => {
                         console.log(`Message received from worker: ${JSON.stringify(e.data)}`);
                         if (e.data.status === true) {
                             console.log(`e.data.status: ${e.data.status}`);
+                            console.log(`e.data.result: ${e.data.result}`);
                             setFrsStatus(true);
+                            // Parse JSON string into an object
+                            const personData: Person = JSON.parse(e.data.result);
+                            setPerson(personData);
                         }
                     };
-
-                    // // send cropped image python backend
-                    // const response: FaceRegResponse = await loginByFace(croppedFace);
-                    // if (response != null && response.status == 0) {
-                    //     return true;
-                    // }
                 }
             }
         } catch (ex) {
@@ -135,11 +137,13 @@ const FaceLoginForm = () => {
 
     const renderFrame = async () => {
         try {
-            // console.log(`rendering frame...`);
-            let result = await detectFrame();
             console.log(`frs status: ${frsStatus}`);
-            // console.log(result);
-            if (result === true || frsStatus === true) {
+            if (frsStatus === true) {
+                // Stop further frame rendering
+                cancelAnimationFrame(animationFrameRef.current!);
+
+                // Terminate the worker
+                faceLoginWorker?.terminate();
 
                 // Simulate successful face enrollment
                 setShowTimer(true);
@@ -149,15 +153,18 @@ const FaceLoginForm = () => {
                     setTimer((prev) => {
                         if (prev <= 1) {
                             clearInterval(timerInterval);
-                            cancelAnimationFrame(animationFrameRef.current!);
                             return 0;
                         }
                         return prev - 1;
                     });
                 }, 1000);
                 return;
+            } else {
+                // console.log(`rendering frame...`);
+                await detectFrame();
+                // console.log(result);
+                animationFrameRef.current = requestAnimationFrame(renderFrame);
             }
-            animationFrameRef.current = requestAnimationFrame(renderFrame);
         } catch (ex) {
             console.error(`Error when rendering frame: ${ex}`);
         }
@@ -195,6 +202,7 @@ const FaceLoginForm = () => {
     useEffect(() => {
         startVideo();
         loadModel().then(() => setIsLoading(false));
+        return () => stopVideo();
     }, []);
 
 
@@ -202,15 +210,35 @@ const FaceLoginForm = () => {
         if (netDetectionTf) {
             animationFrameRef.current = requestAnimationFrame(renderFrame);
         }
+
+        return () => cancelAnimationFrame(animationFrameRef.current!);
     }, [netDetectionTf, frsStatus]);
 
     // Navigate to the login page when the timer reaches 0
     useEffect(() => {
         if (timer === 0) {
             stopVideo();
-            router.push("/dashboard");
+            cancelAnimationFrame(animationFrameRef.current!);
+
+            // Terminate the worker
+            if (faceLoginWorker) {
+                faceLoginWorker.terminate();
+            }
+
+            const query = new URLSearchParams(person);
+            router.push(`/dashboard?${query}`);
         }
-    }, [timer, router]);
+    }, [timer, router, faceLoginWorker, person]);
+
+
+    // Cleanup on component unmount
+    useEffect(() => {
+        return () => {
+            stopVideo();
+            cancelAnimationFrame(animationFrameRef.current!);
+            faceLoginWorker?.terminate();
+        };
+    }, [faceLoginWorker]);
 
     return (
         <Card>
@@ -225,7 +253,7 @@ const FaceLoginForm = () => {
                         <video
                             ref={videoRef}
                             style={{
-                                display: "none",
+                                display: "block",
                                 width: "auto", height: "80vh"
                             }}
                         />

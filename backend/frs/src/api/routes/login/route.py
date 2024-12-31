@@ -30,8 +30,15 @@ async def login(
         logger.info(f'searching face embedding to database...')
         result = vector_db_context.search_embedding(vector=emb)
 
-        return {"status": 0,
-                "result": result}
+        # Find the single result with score > 0.75 and maximum score
+        final_result = max(
+            (point for point in result if point.score > 0.75),  # Filter for score > 0.75
+            key=lambda point: point.score,  # Get the max by score
+            default=None  # Handle case if no point matches
+        )
+
+        return {"status": 0 if final_result else 2,
+                "result": final_result}
     except Exception as x:
         logger.error(f"Error when enrolling by image. Details: {x}")
         raise HTTPException(status_code=500, detail="Not a valid image!")

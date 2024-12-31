@@ -54,7 +54,7 @@ class VectorDbContext:
         search_result = self.client.query_points(
             collection_name=self.collection_name,
             query=vector,
-            with_payload=False,
+            with_payload=True,
             limit=10
         ).points
 
