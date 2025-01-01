@@ -1,21 +1,14 @@
-import base64
-import json
 import os
 import warnings
-import numpy as np
-import cv2
 
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import config
 from api.routes.dnn.route import dnn_router
 from api.routes.login.route import login_router
 from api.routes.registration.route import register_router
 from api.routes.search.route import search_router
-from api.services.face_service import FaceService
 from utils.vision_utils import log_utils
-from cache.redis_service import RedisCacheService
 
 warnings.filterwarnings("ignore")
 logger = log_utils.LogUtils().get_logger(__name__)
