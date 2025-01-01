@@ -65,8 +65,10 @@ const FaceLoginForm = () => {
             return false;
         }
 
+        setIsProcessing(true);
+
         if (isLoading) {
-            setIsLoading(false);
+            setIsLoading(false);            
         }
 
         try {
@@ -74,16 +76,16 @@ const FaceLoginForm = () => {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Capture video frame as ImageData
-            ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);            
+            // ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             const predictions = await netDetectionTf.estimateFaces(video, { width: video.videoWidth, height: video.videoHeight }, { flipHorizontal: false });
 
             if (predictions.length > 0) {
 
-                setIsProcessing(true);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 // console.log(predictions);            
                 for (let i = 0; i < predictions.length; i++) {
@@ -126,7 +128,7 @@ const FaceLoginForm = () => {
 
     const renderFrame = async () => {
         try {
-            console.log(`frs status: ${frsStatus}`);
+            // console.log(`frs status: ${frsStatus}`);
             if (frsStatus === true) {
                 // Stop further frame rendering
                 cancelAnimationFrame(animationFrameRef.current!);
@@ -148,10 +150,11 @@ const FaceLoginForm = () => {
                     });
                 }, 1000);
                 return;
-            } else {
-                // console.log(`rendering frame...`);
-                await detectFrame();
-                // console.log(result);
+            }
+
+            // apply face detection
+            const status = await detectFrame();
+            if (status !== true) {
                 animationFrameRef.current = requestAnimationFrame(renderFrame);
             }
         } catch (ex) {
@@ -219,7 +222,10 @@ const FaceLoginForm = () => {
             }
         }, 1000); // Delay detection for 1 second
 
-        return () => clearTimeout(delayDetection);
+        return () => {
+            clearTimeout(delayDetection);
+            cancelAnimationFrame(animationFrameRef.current!);
+        }
     }, [netDetectionTf, frsStatus]);
 
     // Navigate to the login page when the timer reaches 0
@@ -227,6 +233,7 @@ const FaceLoginForm = () => {
         if (timer === 0) {
             stopVideo();
             cancelAnimationFrame(animationFrameRef.current!);
+            setIsProcessing(false);
 
             // Terminate the worker
             if (faceLoginWorker) {
@@ -278,7 +285,8 @@ const FaceLoginForm = () => {
                         {/* Timer Animation */}
                         {showTimer && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-50">
-                                <div className="text-white text-xl font-bold mb-4">
+                                <h2 className="text-white text-xl font-bold mb-4">Face Match Found!</h2>
+                                <div className="text-white text-xl font-bold mb-4">                                    
                                     Redirecting in {timer} seconds...
                                 </div>
                                 {/* Circular Progress Animation */}
