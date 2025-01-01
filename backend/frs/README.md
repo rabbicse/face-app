@@ -36,3 +36,23 @@ Ensure you have the following installed on your system:
   ALGORITHM=HS256  
   ACCESS_TOKEN_EXPIRE_MINUTES=30  
   ```
+3. Install Dependencies
+
+```
+pip install -r requirements.txt  
+```
+4. Run the Application. Using Docker:
+```
+docker-compose up --build
+```
+Local Development:
+```bash
+uvicorn main:app --reload
+```
+The API will be accessible at: `http://localhost:5000`
+
+## 📄 API Documentation
+Once the server is running, you can access the interactive API docs at:
+
+Swagger UI: `http://localhost:8000/docs`
+ReDoc: `http://localhost:8000/redoc`
