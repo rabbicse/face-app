@@ -11,7 +11,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FaceRegResponse } from "@/models/responses";
 import { Loader2 } from "lucide-react";
 import { Person } from "@/models/person";
-import { useTensorFlowModel } from "../tensorflow/TensorflowContext";
 
 
 const FaceLoginForm = () => {
@@ -28,10 +27,20 @@ const FaceLoginForm = () => {
     const [frsStatus, setFrsStatus] = useState(false);
     const [person, setPerson] = useState<Person | null>(null);
 
-
-    const { model } = useTensorFlowModel();
-
     // const faceLoginworker = new Worker('/workers/faceloginworker.ts');
+
+    useEffect(() => {
+        console.log(`trying to initialize worker`);
+        if (typeof window !== "undefined") {
+            console.log(`entering worker creation...`);
+            const worker = new Worker(new URL('@/workers/faceloginworker.ts', import.meta.url));
+            setFaceLoginWorker(worker);
+        }
+
+        return () => {
+            faceLoginWorker?.terminate();
+        };
+    }, []);
 
 
     const stopVideo = () => {
@@ -77,14 +86,13 @@ const FaceLoginForm = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Capture video frame as ImageData
-            ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);            
+            ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            setIsProcessing(true);
 
             const predictions = await netDetectionTf.estimateFaces(video, { width: video.videoWidth, height: video.videoHeight }, { flipHorizontal: false });
 
             if (predictions.length > 0) {
-
-                setIsProcessing(true);
-
                 // console.log(predictions);            
                 for (let i = 0; i < predictions.length; i++) {
                     const detection = predictions[i];
@@ -107,7 +115,10 @@ const FaceLoginForm = () => {
                     faceLoginWorker.postMessage({ blob: croppedFace });
 
                     faceLoginWorker.onmessage = (e) => {
+                        console.log(`Message received from worker: ${JSON.stringify(e.data)}`);
                         if (e.data.status === true) {
+                            console.log(`e.data.status: ${e.data.status}`);
+                            console.log(`e.data.result: ${e.data.result}`);
                             setFrsStatus(true);
                             // Parse JSON string into an object
                             const personData: Person = JSON.parse(e.data.result);
@@ -160,6 +171,14 @@ const FaceLoginForm = () => {
     };
 
 
+    // Load TensorFlow model
+    const loadModel = async () => {
+        await setupBackend();
+
+        const model = await load();
+        setNetDetectionTf(model);
+    };
+
     // Initialize video stream
     const startVideo = async () => {
         // Specify desired video resolution
@@ -181,45 +200,18 @@ const FaceLoginForm = () => {
     };
 
     useEffect(() => {
-        console.log(`trying to initialize worker`);
-        if (typeof window !== "undefined") {
-            console.log(`entering worker creation...`);
-            const worker = new Worker(new URL('@/workers/faceloginworker.ts', import.meta.url));
-            // worker.postMessage({ preload: true }); // Custom message to preload necessary scripts
-            setFaceLoginWorker(worker);
-        }
-
-        return () => {
-            faceLoginWorker?.terminate();
-        };
-    }, []);
-
-
-    useEffect(() => {
-        if (model) {
-            setNetDetectionTf(model);
-        }
-    }, [model]);
-
-
-    useEffect(() => {
-        const initVideo = async () => {
-            await startVideo();
-        };
-        initVideo();
-        setIsLoading(false);
+        startVideo();
+        loadModel().then(() => setIsLoading(false));
         return () => stopVideo();
     }, []);
 
 
     useEffect(() => {
-        const delayDetection = setTimeout(() => {
-            if (netDetectionTf) {
-                animationFrameRef.current = requestAnimationFrame(renderFrame);
-            }
-        }, 1000); // Delay detection for 1 second
+        if (netDetectionTf) {
+            animationFrameRef.current = requestAnimationFrame(renderFrame);
+        }
 
-        return () => clearTimeout(delayDetection);
+        return () => cancelAnimationFrame(animationFrameRef.current!);
     }, [netDetectionTf, frsStatus]);
 
     // Navigate to the login page when the timer reaches 0
@@ -269,7 +261,7 @@ const FaceLoginForm = () => {
                             ref={canvasRef}
                             style={{
                                 position: "absolute",
-                                display: isProcessing ? "block" : "none",
+                                display: "block",
                                 width: "auto",
                                 height: "80vh",
                             }}

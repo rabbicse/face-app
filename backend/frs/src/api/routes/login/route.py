@@ -32,7 +32,7 @@ async def login(
 
         # Find the single result with score > 0.75 and maximum score
         final_result = max(
-            (point for point in result if point.score > 0.75),  # Filter for score > 0.75
+            (point for point in result if point.score >= 0.60),  # Filter for score > 0.75
             key=lambda point: point.score,  # Get the max by score
             default=None  # Handle case if no point matches
         )
