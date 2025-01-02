@@ -1,5 +1,7 @@
 # Face Recognition Application
 
+[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-Backend-blue)](https://hub.docker.com/r/meheditech/frs-backend)
+
 ## Overview
 
 **Face Recognition Application** is a cutting-edge facial recognition application built with modern technologies. It supports face detection, keypoint extraction and embedding generation. The app is optimized for high performance and accuracy, designed for use in identity verification, security and other facial recognition applications.
