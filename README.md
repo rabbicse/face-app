@@ -46,14 +46,14 @@ Ensure you have the following installed:
 2. Install dependencies for the frontend:
 
     ```bash
-    cd frontend
+    cd frontend/frs_react
     npm install
     ```
 
 3. Set up the backend:
 
     ```bash
-    cd ../backend
+    cd backend/frs
     pip install -r requirements.txt
     ```
 
@@ -72,14 +72,14 @@ Ensure you have the following installed:
     - Frontend:
 
       ```bash
-      cd frontend
+      cd frontend/frs_react
       npm run dev
       ```
 
     - Backend:
 
       ```bash
-      cd ../backend
+      cd backend/frs
       uvicorn api.server:app --reload --host 0.0.0.0 --port 5000
       ```
 
