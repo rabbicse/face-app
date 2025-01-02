@@ -29,8 +29,8 @@
 
 Ensure you have the following installed:
 
-- Node.js (v16 or higher)
-- Python (v3.9 or higher)
+- Node.js (v22 or higher)
+- Python (v3.12 or higher)
 - Docker (Optional, for containerized setup)
 - CUDA Toolkit (Optional, for GPU acceleration)
 
