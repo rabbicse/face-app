@@ -1,0 +1,5 @@
+*.py linguist-detectable=true
+*.js linguist-detectable=true
+*.ts linguist-detectable=true
+*.json linguist-detectable=false
+*.md linguist-documentation
