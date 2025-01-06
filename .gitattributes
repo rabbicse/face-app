@@ -2,4 +2,6 @@
 *.js linguist-detectable=true
 *.ts linguist-detectable=true
 *.json linguist-detectable=false
+*.jpg linguist-detectable=false
+*.png linguist-detectable=false
 *.md linguist-documentation
