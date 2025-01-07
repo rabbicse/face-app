@@ -7,9 +7,10 @@ from qdrant_client.http.models import PointStruct
 from qdrant_client.models import Distance, VectorParams
 
 from api.model.person import Person
+from utils.vision_utils import log_utils
 from utils.vision_utils.singleton_decorator import SingletonDecorator
 
-logger = logging.getLogger(__name__)
+logger = log_utils.LogUtils().get_logger(__name__)
 
 
 @SingletonDecorator
@@ -48,7 +49,7 @@ class VectorDbContext:
                 PointStruct(id=person.person_id, vector=vector, payload=payload),
             ],
         )
-        print(operation_info)
+        logger.info(f'Upsert status for id: {person.person_id} => {operation_info.status}')
 
     def search_embedding(self, vector: np.ndarray):
         search_result = self.client.query_points(
