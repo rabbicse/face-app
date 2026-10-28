@@ -147,3 +147,10 @@ cython_debug/
 volumes/
 qdrant_data/
 node_modules/
+# ---- on-device face models / runtime assets (downloaded by scripts) ----
+/models/
+frontend/frs_react/public/models/
+frontend/frs_react/public/ort/
+frontend/frs_react/public/mediapipe/
+frontend/frs_react/.next/
+node_modules/
