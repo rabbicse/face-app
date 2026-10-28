@@ -45,3 +45,8 @@ node_modules/
 !/public/models/
 !lib/
 !models/
+
+# on-device models are downloaded by `npm run setup:assets` (not committed)
+/public/models/
+/public/ort/
+/public/mediapipe/
