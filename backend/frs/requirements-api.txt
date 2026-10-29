@@ -1,0 +1,7 @@
+# Lightweight API: stores / searches embeddings computed on the client devices.
+# No torch, OpenCV or model weights needed (run with FRS_ENABLE_SERVER_INFERENCE=false).
+fastapi==0.115.5
+uvicorn==0.32.1
+pydantic==2.10.0
+qdrant-client==1.12.1
+numpy==2.1.3

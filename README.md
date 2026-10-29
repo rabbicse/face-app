@@ -8,14 +8,33 @@
 
 ## Features
 
-- **Face Detection**: Detect faces in real-time or static images.
-- **Facial Landmarks Extraction**: Identify key facial points for advanced facial analysis.
-- **Embedding Generation**: Generate facial embeddings for comparison and recognition.
-- **API Support**: Provides RESTful APIs for integration.
+- **On-device embeddings**: the browser and the Android/iOS app detect, align and embed the face locally
+  (512-d ArcFace / MobileFaceNet). Only the vector is sent to the server - never a photo.
+- **Guided registration**: frontal, left/right and up/down samples, checked with head pose (yaw, pitch, roll)
+  measured relative to the user's own frontal pose.
+- **Fast identification**: no pose requirement; quality-gated frames, 3-frame fusion, vector search in Qdrant.
+- **Web, Android and iOS share one vector space**: same model file, same alignment, tested against shared
+  golden values.
+- **Legacy server-side inference** (RetinaFace + ArcFace r100, PyTorch) is still available for photo uploads.
+
+See [docs/client-side-embeddings.md](docs/client-side-embeddings.md) for the design, the performance analysis
+of the previous webcam flow and security notes.
+
+## Repository layout
+
+| Path | What |
+| --- | --- |
+| `frontend/frs_react` | Next.js web app: on-device pipeline in `src/face`, examples under `/examples` |
+| `mobile/face_app` | Flutter app (Android & iOS): ML Kit landmarks + ONNX Runtime Mobile |
+| `backend/frs` | FastAPI: embedding store/search (`/api/v1/embeddings`), legacy image endpoints, Python reference pipeline |
+| `shared/test-vectors` | golden values every implementation is tested against |
+| `frontend/web`, `frontend/frs-frontend`, `frontend/frs_express` | earlier prototypes (unchanged) |
 
 ## Technologies Used
 
-- **Frontend**: React.js, Nextjs
+- **Frontend**: React.js, Nextjs, MediaPipe Face Landmarker, ONNX Runtime Web (WebGPU / WASM, Web Worker)
+- **Mobile**: Flutter, Google ML Kit face detection, ONNX Runtime Mobile
+- **Embedding model (clients)**: MobileFaceNet ArcFace `w600k_mbf` (InsightFace, 512-d)
 - **Backend**: Python (FastAPI)
 - **Face Detection - Backend**: PyTorch, RetinaFace
 - **Face Recognition - Backend**: PyTorch, ArcFace
@@ -23,7 +42,55 @@
 - **Database**: Qdrant (Vector Database), PostgreSQL (Optional for storage)
 - **Containerization**: Docker
 
-## Installation
+## Quick start (client-side embeddings)
+
+```bash
+# 1. backend - embedding-only mode needs neither torch nor model weights
+cd backend/frs
+pip install -r requirements-api.txt
+cd src && QDRANT_LOCATION=:memory: FRS_ENABLE_SERVER_INFERENCE=false uvicorn api.server:app --port 5000
+#    (drop QDRANT_LOCATION to use the Qdrant server from docker-composes/qdrant.yml)
+
+# 2. web app - `npm run dev` downloads the models into public/ on first start
+cd frontend/frs_react
+npm install
+npm run dev            # http://localhost:3000  ->  /registration, /face/login, /examples
+
+# 3. mobile app
+cd mobile/face_app
+tool/setup_models.sh && flutter run --dart-define=FRS_API=http://<your-ip>:5000
+```
+
+### Embedding API
+
+| Method | Endpoint | Body |
+| --- | --- | --- |
+| `POST` | `/api/v1/embeddings/register` | `{model, person: {person_id, name, email, ...}, samples: [{embedding, pose_label, pose: {yaw, pitch, roll}, quality}]}` |
+| `POST` | `/api/v1/embeddings/identify` | `{model, embedding, top_k?, threshold?}` -> `{status, reason, score, person, candidates}` |
+| `DELETE` | `/api/v1/embeddings/persons/{person_id}?model=` | removes all vectors of a person |
+| `GET` | `/api/v1/health` | enabled models / modes |
+
+`embedding` is either a JSON array of 512 floats or base64 of little-endian float32 (what the clients send).
+
+## Examples
+
+- Web: `/examples/pipeline` (live timings, pose, quality, aligned crop, similarity to a reference),
+  `/examples/compare` (two photos compared in the browser), quick frontal-only registration.
+- Python: `backend/frs/examples/client_embedding_demo.py embed|compare|register|identify|benchmark --image ...`
+  computes embeddings exactly like the clients (useful for enrolling from photos and tuning thresholds).
+- Export your own backbone: `backend/frs/tools/export_onnx.py`.
+
+## Tests
+
+```bash
+cd backend/frs && pip install -r requirements-dev.txt && pytest          # pipeline, service, API (in-memory Qdrant)
+cd frontend/frs_react && npm test && npm run lint && npx tsc --noEmit     # vitest
+cd mobile/face_app && flutter analyze && flutter test
+```
+
+End-to-end browser test with a fake webcam: `frontend/frs_react/e2e/face-flow.mjs` (instructions in the file).
+
+## Installation (legacy server-side inference)
 
 ### Prerequisites
 
