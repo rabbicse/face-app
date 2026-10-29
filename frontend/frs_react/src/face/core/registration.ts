@@ -93,18 +93,32 @@ export class RegistrationSession {
         return this.samples;
     }
 
+    /**
+     * Pose relative to the user's own frontal baseline (mean of the accepted frontal samples). Non frontal
+     * targets are checked against it, so a camera mounted below / above the eyes does not bias them.
+     */
+    relativePose(pose: HeadPose): HeadPose {
+        const frontal = this.samples.filter(s => s.poseLabel === "frontal");
+        if (this.currentTarget?.label === "frontal" || frontal.length === 0) {
+            return pose;
+        }
+        const yaw0 = frontal.reduce((s, f) => s + f.pose.yaw, 0) / frontal.length;
+        const pitch0 = frontal.reduce((s, f) => s + f.pose.pitch, 0) / frontal.length;
+        return { yaw: pose.yaw - yaw0, pitch: pose.pitch - pitch0, roll: pose.roll };
+    }
+
     /** Cheap pre-check so callers only compute an embedding when it could be accepted. */
     wants(pose: HeadPose, timestamp: number): boolean {
         const target = this.currentTarget;
         return target !== null && timestamp - this.lastAccepted >= this.options.minIntervalMs
-            && matchesPose(pose, target.label);
+            && matchesPose(this.relativePose(pose), target.label);
     }
 
     offer(sample: Omit<RegistrationSample, "poseLabel">): OfferResult {
         const target = this.currentTarget;
         if (target === null) return "complete";
         if (sample.timestamp - this.lastAccepted < this.options.minIntervalMs) return "too_soon";
-        if (!matchesPose(sample.pose, target.label)) return "wrong_pose";
+        if (!matchesPose(this.relativePose(sample.pose), target.label)) return "wrong_pose";
 
         const samePose = this.samples.filter(s => s.poseLabel === target.label);
         for (const s of samePose) {

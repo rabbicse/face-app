@@ -57,6 +57,19 @@ describe("RegistrationSession", () => {
         expect(s.offer({ embedding: alice, pose: POSES.frontal, quality: 1, timestamp: 2000 })).toBe("duplicate");
     });
 
+    it("measures non frontal poses relative to the user's frontal baseline", () => {
+        const s = new RegistrationSession([
+            { label: "frontal", count: 1, instruction: "" },
+            { label: "look_up", count: 1, instruction: "" },
+        ]);
+        const alice = identity(1);
+        // camera below the eyes: the "straight" pose already reads 12 degrees up
+        expect(s.offer({ embedding: alice, pose: { yaw: 0, pitch: 12, roll: 0 }, quality: 1, timestamp: 0 })).toBe("accepted");
+        expect(s.wants({ yaw: 0, pitch: 20, roll: 0 }, 1000)).toBe(false); // only 8 degrees above baseline
+        expect(s.relativePose({ yaw: 3, pitch: 30, roll: 2 })).toEqual({ yaw: 3, pitch: 18, roll: 2 });
+        expect(s.offer({ embedding: noisy(alice, 5), pose: { yaw: 0, pitch: 30, roll: 0 }, quality: 1, timestamp: 1000 })).toBe("complete");
+    });
+
     it("rejects a different person stepping in", () => {
         const s = new RegistrationSession(QUICK_REGISTRATION_PLAN);
         expect(s.offer({ embedding: identity(1), pose: POSES.frontal, quality: 1, timestamp: 0 })).toBe("accepted");

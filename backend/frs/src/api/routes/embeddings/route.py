@@ -75,6 +75,11 @@ def identify(req: IdentifyRequest, service: EmbeddingService = Depends(get_embed
         result = service.identify(req.model, req.embedding, top_k=req.top_k, threshold=req.threshold)
     except EmbeddingValidationError as x:
         raise HTTPException(status_code=422, detail=str(x))
+    if result.candidates:
+        best = result.candidates[0]
+        logger.info(f'identify: {result.reason} (best person {best.person_id}, score {best.score:.4f})')
+    else:
+        logger.info(f'identify: {result.reason}')
     return {
         'status': 0 if result.match else 2,
         'reason': result.reason,

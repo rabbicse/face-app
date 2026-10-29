@@ -21,7 +21,7 @@ interface PoseRange {
 
 /** Must stay in sync with backend/frs/src/face_pipeline/pose.py and the Flutter app. */
 export const POSE_TARGETS: Record<PoseLabel, PoseRange> = {
-    frontal: { yaw: [-10, 10], pitch: [-10, 10], maxRoll: 10 },
+    frontal: { yaw: [-12, 12], pitch: [-15, 15], maxRoll: 10 },
     turn_left: { yaw: [15, 40], pitch: [-15, 15], maxRoll: 15 },
     turn_right: { yaw: [-40, -15], pitch: [-15, 15], maxRoll: 15 },
     look_up: { yaw: [-12, 12], pitch: [10, 30], maxRoll: 15 },
@@ -54,6 +54,23 @@ export function poseFromLandmarks3d(leftEye: Point3, rightEye: Point3, forehead:
         yaw: Math.atan2(fx, -fz) * RAD_TO_DEG,
         pitch: Math.asin(Math.max(-1, Math.min(1, -fy))) * RAD_TO_DEG,
         roll: Math.atan2(-ay, ax) * RAD_TO_DEG,
+    };
+}
+
+/**
+ * Pose from MediaPipe's facial transformation matrix (4x4, column-major), the rigid fit of the whole
+ * mesh to the canonical face model. Metric space: x right, y up, z towards the camera; the canonical
+ * face looks along +z with +y up. More reliable than {@link poseFromLandmarks3d}, whose pitch is
+ * biased by the non-metric per-landmark depth.
+ */
+export function poseFromTransformationMatrix(m: ArrayLike<number>): HeadPose {
+    const at = (row: number, col: number) => m[col * 4 + row];
+    const fn = Math.hypot(at(0, 2), at(1, 2), at(2, 2));
+    const fx = at(0, 2) / fn, fy = at(1, 2) / fn, fz = at(2, 2) / fn;
+    return {
+        yaw: Math.atan2(fx, fz) * RAD_TO_DEG,
+        pitch: Math.asin(Math.max(-1, Math.min(1, fy))) * RAD_TO_DEG,
+        roll: Math.atan2(at(1, 0), at(0, 0)) * RAD_TO_DEG,
     };
 }
 

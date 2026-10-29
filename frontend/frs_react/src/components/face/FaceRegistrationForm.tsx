@@ -85,7 +85,8 @@ const FaceRegistrationForm = () => {
             setMessage(face ? "Done" : "No face detected");
         } else if (!session.wants(face.pose, ts)) {
             tone = "warn";
-            const hint = poseHint(face.pose.yaw, face.pose.pitch, target.label);
+            const rel = session.relativePose(face.pose);
+            const hint = poseHint(rel.yaw, rel.pitch, target.label);
             setMessage(`${target.instruction}${hint ? ` - ${hint}` : ""}`);
         } else {
             const aligned = engine.align(video, face, w, h);

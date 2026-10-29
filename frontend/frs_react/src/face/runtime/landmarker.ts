@@ -27,7 +27,7 @@ export async function createLandmarker(opts: LandmarkerOptions): Promise<Landmar
                 minFacePresenceConfidence: 0.6,
                 minTrackingConfidence: 0.5,
                 outputFaceBlendshapes: false,
-                outputFacialTransformationMatrixes: false,
+                outputFacialTransformationMatrixes: true,
             });
             return { landmarker, delegate };
         } catch (e) {
@@ -41,12 +41,12 @@ export async function createLandmarker(opts: LandmarkerOptions): Promise<Landmar
 export function detectInVideo(handle: LandmarkerHandle, video: HTMLVideoElement, timestampMs: number): FaceGeometry | null {
     const result = handle.landmarker.detectForVideo(video, timestampMs);
     const face = result.faceLandmarks?.[0];
-    return face ? faceGeometryFromMesh(face, video.videoWidth, video.videoHeight) : null;
+    return face ? faceGeometryFromMesh(face, video.videoWidth, video.videoHeight, result.facialTransformationMatrixes?.[0]?.data) : null;
 }
 
 export function detectInImage(handle: LandmarkerHandle, image: HTMLImageElement | HTMLCanvasElement | ImageBitmap,
     width: number, height: number): FaceGeometry | null {
     const result = handle.landmarker.detect(image);
     const face = result.faceLandmarks?.[0];
-    return face ? faceGeometryFromMesh(face, width, height) : null;
+    return face ? faceGeometryFromMesh(face, width, height, result.facialTransformationMatrixes?.[0]?.data) : null;
 }

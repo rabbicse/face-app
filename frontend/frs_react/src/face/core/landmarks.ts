@@ -1,5 +1,5 @@
 import { distance, Point, Point3 } from "./geometry";
-import { HeadPose, poseFromLandmarks3d } from "./pose";
+import { HeadPose, poseFromLandmarks3d, poseFromTransformationMatrix } from "./pose";
 
 export interface NormalizedLandmark {
     x: number;
@@ -62,7 +62,12 @@ function leftRight<T extends Point>(a: T, b: T): [T, T] {
     return a.x <= b.x ? [a, b] : [b, a];
 }
 
-export function faceGeometryFromMesh(lm: readonly NormalizedLandmark[], width: number, height: number): FaceGeometry {
+/**
+ * @param transform optional MediaPipe facial transformation matrix (column-major 4x4); preferred for
+ *                  the head pose when available
+ */
+export function faceGeometryFromMesh(lm: readonly NormalizedLandmark[], width: number, height: number,
+    transform?: ArrayLike<number>): FaceGeometry {
     if (lm.length < 468) {
         throw new Error(`expected a 468/478 point face mesh, got ${lm.length} points`);
     }
@@ -86,8 +91,10 @@ export function faceGeometryFromMesh(lm: readonly NormalizedLandmark[], width: n
     return {
         points5: [leftEye, rightEye, nose, mouthLeft, mouthRight].map(p => ({ x: p.x, y: p.y })),
         box: { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
-        pose: poseFromLandmarks3d(leftEye, rightEye, toPixels(lm[MESH.forehead], width, height),
-            toPixels(lm[MESH.chin], width, height)),
+        pose: transform && transform.length === 16
+            ? poseFromTransformationMatrix(transform)
+            : poseFromLandmarks3d(leftEye, rightEye, toPixels(lm[MESH.forehead], width, height),
+                toPixels(lm[MESH.chin], width, height)),
         interOcular: distance(leftEye, rightEye),
     };
 }

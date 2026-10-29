@@ -563,7 +563,7 @@
     "pitch": 12,
     "roll": 0
    },
-   "label": "look_up"
+   "label": "frontal"
   }
  ],
  "preprocess": {

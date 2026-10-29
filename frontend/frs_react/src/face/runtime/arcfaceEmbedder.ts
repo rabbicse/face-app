@@ -34,6 +34,8 @@ export class ArcFaceEmbedder {
                 const session = await ort.InferenceSession.create(opts.modelUrl, {
                     executionProviders: [ep],
                     graphOptimizationLevel: "all",
+                    // silences "VerifyOutputSizes" warnings: the model declares batch 1 but accepts 2 (flip TTA)
+                    logSeverityLevel: 3,
                 });
                 const embedder = new ArcFaceEmbedder(session, ep, opts.inputSize);
                 // warm up: first run compiles shaders / allocates buffers

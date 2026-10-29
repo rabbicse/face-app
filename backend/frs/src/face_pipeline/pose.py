@@ -42,9 +42,11 @@ def pose_from_landmarks_3d(left_eye: Sequence[float], right_eye: Sequence[float]
     return HeadPose(yaw=yaw, pitch=pitch, roll=roll)
 
 
-# Registration pose targets: label -> (yaw range, pitch range, max |roll|)
+# Registration pose targets: label -> (yaw range, pitch range, max |roll|).
+# Clients evaluate the non frontal targets relative to the user's mean frontal pose, which cancels
+# the camera placement (laptop camera below the eyes, phone held low, ...).
 POSE_TARGETS = {
-    "frontal": ((-10.0, 10.0), (-10.0, 10.0), 10.0),
+    "frontal": ((-12.0, 12.0), (-15.0, 15.0), 10.0),
     "turn_left": ((15.0, 40.0), (-15.0, 15.0), 15.0),
     "turn_right": ((-40.0, -15.0), (-15.0, 15.0), 15.0),
     "look_up": ((-12.0, 12.0), (10.0, 30.0), 15.0),
