@@ -1,299 +1,124 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react";
-import { load, MediaPipeFaceDetectorTfjs } from "@/dnn/face_detector/detector";
-import { setupBackend } from "@/dnn/tf-backend";
-import { loginByFace } from "@/api/clients/faceRecognitionClient";
-import { drawDetection } from "@/dnn/shared/drawing_utils";
+import React, { useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { cropFace } from "@/dnn/shared/vision";
-import { useRouter, useSearchParams } from "next/navigation";
-import { FaceRegResponse } from "@/models/responses";
-import { Loader2 } from "lucide-react";
-import { Person } from "@/models/person";
-import { useTensorFlowModel } from "../tensorflow/TensorflowContext";
+import { FACE_CONFIG } from "@/face/config";
+import { identifyEmbedding, PersonInfo } from "@/face/api";
+import { IdentificationAggregator } from "@/face/core/identification";
+import { QUALITY_MESSAGES } from "@/face/core/quality";
+import { FaceCamera } from "@/face/react/FaceCamera";
+import { drawOverlay, OverlayTone } from "@/face/react/overlay";
+import { useCamera } from "@/face/react/useCamera";
+import { useFaceEngine } from "@/face/react/useFaceEngine";
+import { useVideoFrames } from "@/face/react/useVideoFrames";
 
+/** Pause between two server queries after a miss, so a stranger cannot flood the API. */
+const RETRY_DELAY_MS = 700;
 
 const FaceLoginForm = () => {
     const router = useRouter();
     const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [netDetectionTf, setNetDetectionTf] = useState<MediaPipeFaceDetectorTfjs | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [timer, setTimer] = useState(5); // Timer countdown
-    const [showTimer, setShowTimer] = useState(false); // Toggle to show timer UI
-    const animationFrameRef = useRef<number | null>(null);
-    const [faceLoginWorker, setFaceLoginWorker] = useState<Worker | null>(null);
-    const [frsStatus, setFrsStatus] = useState(false);
-    const [person, setPerson] = useState<Person | null>(null);
+    const overlayRef = useRef<HTMLCanvasElement>(null);
 
+    const { engine, error: engineError } = useFaceEngine();
+    const { ready: cameraReady, error: cameraError } = useCamera(videoRef);
 
-    const { model } = useTensorFlowModel();
+    const aggregator = useMemo(() => new IdentificationAggregator(), []);
+    const lastEmbedAt = useRef(0);
+    const queryInFlight = useRef(false);
+    const nextQueryAt = useRef(0);
 
-    // const faceLoginworker = new Worker('/workers/faceloginworker.ts');
+    const [message, setMessage] = useState("Look at the camera");
+    const [attempts, setAttempts] = useState(0);
+    const [person, setPerson] = useState<PersonInfo | null>(null);
 
-
-    const stopVideo = () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            console.log(`stopping video...`);
-            (videoRef.current.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
-            videoRef.current.srcObject = null;
-            console.log(`video stopped!`);
-        }
-    }
-
-    const detectFrame = async () => {
-        if (frsStatus === true) return;
-
-        if (!videoRef.current || !canvasRef.current || !netDetectionTf) {
-            // console.log(`videoref: ${videoRef.current} canvasref: ${canvasRef.current} net: ${netDetectionTf}`);
-            return false;
-        }
-
-        const video = videoRef.current;
-        if (video.videoWidth == 0 || video.videoHeight == 0) {
-            // console.log(`video wxh: ${video.width} x ${video.height}`);
-            return false;
-        }
-
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-
-        if (!ctx) {
-            // console.log(`CTX: ${ctx}`);
-            return false;
-        }
-
-        setIsProcessing(true);
-
-        if (isLoading) {
-            setIsLoading(false);            
-        }
-
+    const query = async (embedding: Float32Array) => {
+        queryInFlight.current = true;
         try {
-            // Set canvas dimensions to match the video
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            const res = await identifyEmbedding(embedding);
+            if (res.status === 0 && res.person) {
+                setPerson(res.person);
+                const params = new URLSearchParams({ name: res.person.name, email: res.person.email ?? "" });
+                setTimeout(() => router.push(`/dashboard?${params}`), 2000);
+            } else {
+                setAttempts(a => a + 1);
+                setMessage(res.reason === "no_enrolled_faces" ? "No faces registered yet" : "Face not recognized, keep looking at the camera");
+                nextQueryAt.current = performance.now() + RETRY_DELAY_MS;
+            }
+        } catch (e) {
+            setMessage(`Server error: ${e instanceof Error ? e.message : String(e)}`);
+            nextQueryAt.current = performance.now() + 3 * RETRY_DELAY_MS;
+        } finally {
+            queryInFlight.current = false;
+        }
+    };
 
-            // ctx.clearRect(0, 0, canvas.width, canvas.height);
+    useVideoFrames(videoRef, !person && !!engine && cameraReady, (video, ts) => {
+        if (!engine) return;
+        const w = video.videoWidth, h = video.videoHeight;
+        const face = engine.detect(video, ts);
+        let tone: OverlayTone = "neutral";
 
-            // Capture video frame as ImageData
-            // ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            const predictions = await netDetectionTf.estimateFaces(video, { width: video.videoWidth, height: video.videoHeight }, { flipHorizontal: false });
-
-            if (predictions.length > 0) {
-
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // console.log(predictions);            
-                for (let i = 0; i < predictions.length; i++) {
-                    const detection = predictions[i];
-
-                    // draw over canvas for visualization
-                    drawDetection(ctx, detection);
-
-                    if (frsStatus) {
-                        return true;
-                    }
-
-                    // crop image based on bounding bbox
-                    const croppedFace = await cropFace(video, detection.box);
-
-                    if (!faceLoginWorker) {
-                        console.log(`Web worker undefined...`);
-                        return false;
-                    }
-
-                    faceLoginWorker.postMessage({ blob: croppedFace });
-
-                    faceLoginWorker.onmessage = (e) => {
-                        if (e.data.status === true) {
-                            setFrsStatus(true);
-                            // Parse JSON string into an object
-                            const personData: Person = JSON.parse(e.data.result);
-                            setPerson(personData);
+        if (!face) {
+            aggregator.reset();
+            setMessage("No face detected");
+        } else {
+            // identification has no head pose requirement, only image quality
+            const aligned = engine.align(video, face, w, h);
+            if (!aligned.quality.ok) {
+                tone = "warn";
+                setMessage(QUALITY_MESSAGES[aligned.quality.issues[0]]);
+            } else {
+                tone = "good";
+                const minGap = 1000 / FACE_CONFIG.maxEmbeddingsPerSecond;
+                const canQuery = !queryInFlight.current && ts >= nextQueryAt.current;
+                if (canQuery && !engine.embedderBusy && ts - lastEmbedAt.current >= minGap) {
+                    lastEmbedAt.current = ts;
+                    void engine.embed(aligned).then(({ embedding }) => {
+                        const fused = aggregator.add(embedding, performance.now());
+                        if (fused && !queryInFlight.current) {
+                            void query(fused);
                         }
-                    };
+                    }).catch(e => console.error("embedding failed", e));
                 }
             }
-        } catch (ex) {
-            console.log(`Error when process frame! Details: ${ex}`)
-        } finally {
-            setIsProcessing(false);
         }
-        return false;
-    };
-
-    const renderFrame = async () => {
-        try {
-            // console.log(`frs status: ${frsStatus}`);
-            if (frsStatus === true) {
-                // Stop further frame rendering
-                cancelAnimationFrame(animationFrameRef.current!);
-
-                // Terminate the worker
-                faceLoginWorker?.terminate();
-
-                // Simulate successful face enrollment
-                setShowTimer(true);
-
-                // Start the timer countdown
-                const timerInterval = setInterval(() => {
-                    setTimer((prev) => {
-                        if (prev <= 1) {
-                            clearInterval(timerInterval);
-                            return 0;
-                        }
-                        return prev - 1;
-                    });
-                }, 1000);
-                return;
-            }
-
-            // apply face detection
-            const status = await detectFrame();
-            if (status !== true) {
-                animationFrameRef.current = requestAnimationFrame(renderFrame);
-            }
-        } catch (ex) {
-            console.error(`Error when rendering frame: ${ex}`);
+        if (overlayRef.current) {
+            drawOverlay(overlayRef.current, w, h, face, tone);
         }
-    };
+    });
 
-
-    // Initialize video stream
-    const startVideo = async () => {
-        // Specify desired video resolution
-        const constraints = {
-            video: {
-                width: { ideal: 640 }, // Preferred width
-                height: { ideal: 480 }, // Preferred height
-            },
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.onloadedmetadata = () => {
-                console.log(`Metadata loaded...`);
-                videoRef.current?.play();
-            };
-        }
-    };
-
-    useEffect(() => {
-        console.log(`trying to initialize worker`);
-        if (typeof window !== "undefined") {
-            console.log(`entering worker creation...`);
-            const worker = new Worker(new URL('@/workers/faceloginworker.ts', import.meta.url));
-            // worker.postMessage({ preload: true }); // Custom message to preload necessary scripts
-            setFaceLoginWorker(worker);
-        }
-
-        return () => {
-            faceLoginWorker?.terminate();
-        };
-    }, []);
-
-
-    useEffect(() => {
-        if (model) {
-            setNetDetectionTf(model);
-        }
-    }, [model]);
-
-
-    useEffect(() => {
-        const initVideo = async () => {
-            await startVideo();
-        };
-        initVideo();
-        setIsLoading(false);
-        return () => stopVideo();
-    }, []);
-
-
-    useEffect(() => {
-        const delayDetection = setTimeout(() => {
-            if (netDetectionTf) {
-                animationFrameRef.current = requestAnimationFrame(renderFrame);
-            }
-        }, 1000); // Delay detection for 1 second
-
-        return () => {
-            clearTimeout(delayDetection);
-            cancelAnimationFrame(animationFrameRef.current!);
-        }
-    }, [netDetectionTf, frsStatus]);
-
-    // Navigate to the login page when the timer reaches 0
-    useEffect(() => {
-        if (timer === 0) {
-            stopVideo();
-            cancelAnimationFrame(animationFrameRef.current!);
-            setIsProcessing(false);
-
-            // Terminate the worker
-            if (faceLoginWorker) {
-                faceLoginWorker.terminate();
-            }
-
-            const query = new URLSearchParams(person);
-            router.push(`/dashboard?${query}`);
-        }
-    }, [timer, router, faceLoginWorker, person]);
-
-
-    // Cleanup on component unmount
-    useEffect(() => {
-        return () => {
-            stopVideo();
-            cancelAnimationFrame(animationFrameRef.current!);
-            faceLoginWorker?.terminate();
-        };
-    }, [faceLoginWorker]);
+    const fatal = engineError || cameraError;
 
     return (
-        <Card>
-            <CardContent className="relative flex aspect-square items-center justify-center p-6">
-                {isLoading ? (
-                    <div className="flex flex-col items-center justify-center">
-                        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-                        <p className="mt-2 text-gray-600">Initializing...</p>
-                    </div>
-                ) : (
-                    <>
-                        <video
-                            ref={videoRef}
-                            style={{
-                                display: "block",
-                                width: "auto", height: "80vh"
-                            }}
-                        />
-                        <canvas
-                            ref={canvasRef}
-                            style={{
-                                position: "absolute",
-                                display: isProcessing ? "block" : "none",
-                                width: "auto",
-                                height: "80vh",
-                            }}
-                        />
-
-                        {/* Timer Animation */}
-                        {showTimer && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-50">
-                                <h2 className="text-white text-xl font-bold mb-4">Face Match Found!</h2>
-                                <div className="text-white text-xl font-bold mb-4">                                    
-                                    Redirecting in {timer} seconds...
-                                </div>
-                                {/* Circular Progress Animation */}
-                                <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-                            </div>
-                        )}
-                    </>
+        <Card className="w-full max-w-xl">
+            <CardContent className="space-y-4 p-6">
+                <h2 className="text-xl font-semibold">Login with your face</h2>
+                <FaceCamera ref={videoRef} overlayRef={overlayRef} className="aspect-[4/3] w-full">
+                    {(!engine || !cameraReady) && !fatal && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
+                            <Loader2 className="h-8 w-8 animate-spin" />
+                            <p className="mt-2 text-sm">{engine ? "Starting camera..." : "Loading face models..."}</p>
+                        </div>
+                    )}
+                    {person && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
+                            <CheckCircle2 className="h-12 w-12 text-green-400" />
+                            <h2 className="mt-2 text-xl font-bold">Welcome, {person.name}!</h2>
+                            <p className="text-sm">Redirecting...</p>
+                        </div>
+                    )}
+                </FaceCamera>
+                <p className="min-h-6 text-center font-medium" aria-live="polite">
+                    {fatal ? <span className="text-red-600">{fatal}</span> : person ? "Face match found!" : message}
+                </p>
+                {attempts >= 5 && !person && (
+                    <p className="text-center text-sm text-muted-foreground">
+                        Not registered yet? <Link className="underline" href="/registration">Create an account</Link>
+                    </p>
                 )}
             </CardContent>
         </Card>

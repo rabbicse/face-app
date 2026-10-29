@@ -45,3 +45,9 @@ node_modules/
 !/public/models/
 !lib/
 !models/
+
+# on-device face recognition assets (npm run setup:face)
+/public/ort/
+/public/mediapipe/
+/public/models/arcface/
+/public/models/mediapipe/

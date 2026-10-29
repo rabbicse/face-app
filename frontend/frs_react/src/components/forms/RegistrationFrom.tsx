@@ -1,6 +1,5 @@
 "use client"
 
-import { Icons } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -15,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
+import { FacePreloader } from "@/face/react/FacePreloader"
 
 export function RegistrationFrom() {
   const router = useRouter();
@@ -32,10 +32,11 @@ export function RegistrationFrom() {
 
   useEffect(() => {
     router.prefetch(`/face/registration`);
-  }, []);
+  }, [router]);
 
   return (
     <Card>
+      <FacePreloader />
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl">Create an account</CardTitle>
         <CardDescription>

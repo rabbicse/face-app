@@ -31,6 +31,11 @@ class LogUtils:
         """
         @return:
         """
+        if not os.path.exists(self.__file_path):
+            # e.g. started from another working directory (tests, examples)
+            logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+            return
+
         try:
             with open(self.__file_path, 'r+') as f:
                 log_config = json.load(f)

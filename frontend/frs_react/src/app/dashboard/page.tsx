@@ -21,7 +21,8 @@ export const metadata: Metadata = {
   description: "Example dashboard app built using the components.",
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ name?: string }> }) {
+  const { name } = await searchParams
   return (
     <>
       <div className="md:hidden">
@@ -53,7 +54,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex-1 space-y-4 p-8 pt-6">
           <div className="flex items-center justify-between space-y-2">
-            <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+            <h2 className="text-3xl font-bold tracking-tight">{name ? `Welcome, ${name}` : "Dashboard"}</h2>
             <div className="flex items-center space-x-2">
               {/* <CalendarDateRangePicker /> */}
               <Button>Download</Button>

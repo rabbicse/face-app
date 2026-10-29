@@ -10,10 +10,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LuScanFace } from "react-icons/lu";
+import { FacePreloader } from "@/face/react/FacePreloader";
 
 export function LoginForm() {
   return (
     <Card className="mx-auto max-w-sm">
+      <FacePreloader />
       <CardHeader>
         <CardTitle className="text-2xl">Login</CardTitle>
         <CardDescription>
@@ -47,8 +49,8 @@ export function LoginForm() {
             </Button>
 
             {/* Scan Face Button */}
-            <Link href="/face/login">
-              <LuScanFace />
+            <Link href="/face/login" aria-label="Login with face" title="Login with face">
+              <LuScanFace className="h-6 w-6" />
             </Link>
           </div>
           {/* <Button variant="outline" className="w-full">

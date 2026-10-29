@@ -1,230 +1,172 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react";
-import { load, MediaPipeFaceDetectorTfjs } from "@/dnn/face_detector/detector";
-import { setupBackend } from "@/dnn/tf-backend";
-import { registerFace } from "@/api/clients/faceRecognitionClient";
-import { drawDetection } from "@/dnn/shared/drawing_utils";
-import { Card, CardContent } from "@/components/ui/card";
-import { cropFace } from "@/dnn/shared/vision";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Person } from "@/models/person";
-import { FaceRegResponse } from "@/models/responses";
-import { Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { FACE_CONFIG } from "@/face/config";
+import { registerEmbeddings } from "@/face/api";
+import { QUALITY_MESSAGES } from "@/face/core/quality";
+import { FULL_REGISTRATION_PLAN, QUICK_REGISTRATION_PLAN, RegistrationSession } from "@/face/core/registration";
+import { POSE_TARGETS } from "@/face/core/pose";
+import { FaceCamera } from "@/face/react/FaceCamera";
+import { drawOverlay, OverlayTone } from "@/face/react/overlay";
+import { personIdFromEmail } from "@/face/react/personId";
+import { useCamera } from "@/face/react/useCamera";
+import { useFaceEngine } from "@/face/react/useFaceEngine";
+import { useVideoFrames } from "@/face/react/useVideoFrames";
 
+type Phase = "capturing" | "uploading" | "done" | "failed";
+
+const POSE_NAMES: Record<string, string> = {
+    frontal: "Front",
+    turn_left: "Left",
+    turn_right: "Right",
+    look_up: "Up",
+    look_down: "Down",
+};
+
+/** Hint towards the target pose, phrased for the mirrored preview (yaw > 0 = the user's own left). */
+function poseHint(yaw: number, pitch: number, label: keyof typeof POSE_TARGETS): string | null {
+    const t = POSE_TARGETS[label];
+    if (yaw < t.yaw[0]) return "Turn a little to your left";
+    if (yaw > t.yaw[1]) return "Turn a little to your right";
+    if (pitch < t.pitch[0]) return "Lift your chin a little";
+    if (pitch > t.pitch[1]) return "Lower your chin a little";
+    return "Keep your head straight";
+}
 
 const FaceRegistrationForm = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [netDetectionTf, setNetDetectionTf] = useState<MediaPipeFaceDetectorTfjs | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [timer, setTimer] = useState(15); // Timer countdown
-    const [showTimer, setShowTimer] = useState(false); // Toggle to show timer UI
-    const animationFrameRef = useRef<number | null>(null);
+    const overlayRef = useRef<HTMLCanvasElement>(null);
 
-    const person: Person = {
-        personId: 123,
-        name: `${searchParams.get("fullname")}`,
-        email: `${searchParams.get("email")}`,
-        age: 30,
-        phone: `0111222`,
-        city: 'Dhaka',
-        country: 'Bangladesh',
-        address: 'Dhaka'
-    };
+    const { engine, error: engineError } = useFaceEngine();
+    const { ready: cameraReady, error: cameraError } = useCamera(videoRef);
 
-    const stopVideo = () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            console.log(`stopping video...`);
-            (videoRef.current.srcObject as MediaStream).getTracks().forEach((track) => track.stop());
-            videoRef.current.srcObject = null;
-            console.log(`video stopped!`);
-        }
-    }
+    const plan = searchParams.get("plan") === "quick" ? QUICK_REGISTRATION_PLAN : FULL_REGISTRATION_PLAN;
+    const session = useMemo(() => new RegistrationSession(plan), [plan]);
+    const lastEmbedAt = useRef(0);
 
-    const detectFrame = async () => {
-        if (!videoRef.current || !canvasRef.current || !netDetectionTf) {
-            // console.log(`videoref: ${videoRef.current} canvasref: ${canvasRef.current} net: ${netDetectionTf}`);
-            return false;
-        }
+    const [phase, setPhase] = useState<Phase>("capturing");
+    const [message, setMessage] = useState("Initializing camera...");
+    const [progress, setProgress] = useState(session.progress);
+    const [error, setError] = useState<string | null>(null);
 
-        const video = videoRef.current;
-        if (video.videoWidth == 0 || video.videoHeight == 0) {
-            // console.log(`video wxh: ${video.width} x ${video.height}`);
-            return false;
-        }
+    const email = searchParams.get("email") ?? "";
+    const fullname = searchParams.get("fullname") ?? "";
 
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-
-        if (!ctx) {
-            // console.log(`CTX: ${ctx}`);
-            return false;
-        }
-
+    const submit = useCallback(async () => {
+        setPhase("uploading");
+        setMessage("Saving your face profile...");
         try {
-            // Set canvas dimensions to match the video
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            await registerEmbeddings(
+                { person_id: personIdFromEmail(email || fullname), name: fullname, email },
+                session.collected.map(s => ({ embedding: s.embedding, poseLabel: s.poseLabel, pose: s.pose, quality: s.quality })),
+            );
+            setPhase("done");
+            setTimeout(() => router.push("/login"), 3000);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+            setPhase("failed");
+        }
+    }, [email, fullname, router, session]);
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+    useVideoFrames(videoRef, phase === "capturing" && !!engine && cameraReady, (video, ts) => {
+        if (!engine) return;
+        const w = video.videoWidth, h = video.videoHeight;
+        const face = engine.detect(video, ts);
+        const target = session.currentTarget;
+        let tone: OverlayTone = "neutral";
 
-            // Capture video frame as ImageData
-            ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            setIsProcessing(true);
-
-            const predictions = await netDetectionTf.estimateFaces(video, { width: video.videoWidth, height: video.videoHeight }, { flipHorizontal: false });
-
-            if (predictions.length > 0) {
-                // console.log(predictions);            
-                for (let i = 0; i < predictions.length; i++) {
-                    const detection = predictions[i];
-
-                    // draw over canvas for visualization
-                    drawDetection(ctx, detection);
-
-                    // crop image based on bounding bbox
-                    const croppedFace = await cropFace(video, detection.box);
-                    // send cropped image python backend
-                    const response: FaceRegResponse = await registerFace(croppedFace, person);
-                    if (response != null && response.status == 0) {
-                        return true;
-                    }
+        if (!face || !target) {
+            setMessage(face ? "Done" : "No face detected");
+        } else if (!session.wants(face.pose, ts)) {
+            tone = "warn";
+            const hint = poseHint(face.pose.yaw, face.pose.pitch, target.label);
+            setMessage(`${target.instruction}${hint ? ` - ${hint}` : ""}`);
+        } else {
+            const aligned = engine.align(video, face, w, h);
+            if (!aligned.quality.ok) {
+                tone = "warn";
+                setMessage(QUALITY_MESSAGES[aligned.quality.issues[0]]);
+            } else {
+                tone = "good";
+                setMessage(`${target.instruction} - hold still`);
+                const minGap = 1000 / FACE_CONFIG.maxEmbeddingsPerSecond;
+                if (!engine.embedderBusy && ts - lastEmbedAt.current >= minGap) {
+                    lastEmbedAt.current = ts;
+                    const pose = face.pose;
+                    const quality = aligned.quality.score;
+                    void engine.embed(aligned).then(({ embedding }) => {
+                        const result = session.offer({ embedding, pose, quality, timestamp: performance.now() });
+                        if (result === "inconsistent") {
+                            setMessage("Only one person please");
+                        }
+                        if (result === "accepted" || result === "complete") {
+                            setProgress(session.progress);
+                        }
+                        if (result === "complete") {
+                            void submit();
+                        }
+                    }).catch(e => console.error("embedding failed", e));
                 }
             }
-        } catch (ex) {
-            console.log(`Error when process frame! Details: ${ex}`)
-        } finally {
-            setIsProcessing(false);
         }
-        return false;
-    };
-
-    const renderFrame = async () => {
-        try {
-            console.log(`rendering frame...`);
-            let result = await detectFrame();
-            console.log(result);
-            if (result === true) {
-
-                // Simulate successful face enrollment
-                setShowTimer(true);
-
-                // Start the timer countdown
-                const timerInterval = setInterval(() => {
-                    setTimer((prev) => {
-                        if (prev <= 1) {
-                            clearInterval(timerInterval);
-                            cancelAnimationFrame(animationFrameRef.current!);
-                            return 0;
-                        }
-                        return prev - 1;
-                    });
-                }, 1000);
-                return;
-            }
-            animationFrameRef.current = requestAnimationFrame(renderFrame);
-        } catch (ex) {
-            console.error(`Error when rendering frame: ${ex}`);
+        if (overlayRef.current) {
+            drawOverlay(overlayRef.current, w, h, face, tone, session.fraction);
         }
-    };
+    });
 
-
-    // Load TensorFlow model
-    const loadModel = async () => {
-        await setupBackend();
-
-        const model = await load();
-        setNetDetectionTf(model);
-    };
-
-    // Initialize video stream
-    const startVideo = async () => {
-        // Specify desired video resolution
-        const constraints = {
-            video: {
-                width: { ideal: 640 }, // Preferred width
-                height: { ideal: 480 }, // Preferred height
-            },
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.onloadedmetadata = () => {
-                console.log(`Metadata loaded...`);
-                videoRef.current?.play();
-            };
-        }
-    };
-
-    useEffect(() => {
-        setIsLoading(true);
-        loadModel()
-            .then(() => {
-                startVideo();
-            }).then(() => setIsLoading(false));
-
-        return stopVideo();
-    }, []);
-
-
-    useEffect(() => {
-        if (netDetectionTf) {
-            animationFrameRef.current = requestAnimationFrame(renderFrame);
-        }
-    }, [netDetectionTf]);
-
-    // Navigate to the login page when the timer reaches 0
-    useEffect(() => {
-        if (timer === 0) {
-            stopVideo();
-            router.push("/login");
-        }
-    }, [timer, router]);
+    const fatal = engineError || cameraError;
 
     return (
-        <Card>
-            <CardContent className="relative flex aspect-square items-center justify-center p-6">
-                {isLoading ? (
-                    <div className="flex flex-col items-center justify-center">
-                        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-                        <p className="mt-2 text-gray-600">Initializing...</p>
-                    </div>
-                ) : (
-                    <>
-                        <video
-                            ref={videoRef}
-                            style={{
-                                display: "block",
-                                width: "auto", height: "80vh"
-                            }}
-                        />
-                        <canvas
-                            ref={canvasRef}
-                            style={{
-                                position: "absolute",
-                                display: "none",
-                                width: "auto",
-                                height: "80vh",
-                            }}
-                        />
+        <Card className="w-full max-w-xl">
+            <CardContent className="space-y-4 p-6">
+                <div>
+                    <h2 className="text-xl font-semibold">Face registration</h2>
+                    <p className="text-sm text-muted-foreground">
+                        {fullname ? `${fullname}, ` : ""}we capture a few angles of your face. Only numeric face
+                        embeddings are sent to the server, never images.
+                    </p>
+                </div>
 
-                        {/* Timer Animation */}
-                        {showTimer && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-50">
-                                <div className="text-white text-xl font-bold mb-4">
-                                    Redirecting in {timer} seconds...
-                                </div>
-                                {/* Circular Progress Animation */}
-                                <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-                            </div>
-                        )}
-                    </>
+                <FaceCamera ref={videoRef} overlayRef={overlayRef} className="aspect-[4/3] w-full">
+                    {(!engine || !cameraReady) && !fatal && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
+                            <Loader2 className="h-8 w-8 animate-spin" />
+                            <p className="mt-2 text-sm">{engine ? "Starting camera..." : "Loading face models..."}</p>
+                        </div>
+                    )}
+                    {phase === "done" && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
+                            <CheckCircle2 className="h-12 w-12 text-green-400" />
+                            <p className="mt-2 text-lg font-semibold">Face enrolled successfully!</p>
+                            <p className="text-sm">Redirecting to login...</p>
+                        </div>
+                    )}
+                </FaceCamera>
+
+                <p className="min-h-6 text-center font-medium" aria-live="polite">
+                    {fatal ? <span className="text-red-600">{fatal}</span> : message}
+                </p>
+
+                <ol className="flex justify-center gap-2">
+                    {progress.map(p => (
+                        <li key={p.label}
+                            className={`rounded-full px-3 py-1 text-xs ${p.have >= p.need ? "bg-green-600 text-white" : session.currentTarget?.label === p.label ? "bg-blue-600 text-white" : "bg-muted"}`}>
+                            {POSE_NAMES[p.label]} {p.have}/{p.need}
+                        </li>
+                    ))}
+                </ol>
+
+                {phase === "failed" && (
+                    <div className="space-y-2 text-center">
+                        <p className="text-sm text-red-600">Registration failed: {error}</p>
+                        <Button onClick={submit}>Retry upload</Button>
+                    </div>
                 )}
             </CardContent>
         </Card>
