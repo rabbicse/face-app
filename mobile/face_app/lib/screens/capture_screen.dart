@@ -95,7 +95,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
         // drop frames while the previous one is processed: latency stays at one frame
         if (_busy || _finished) return;
         _busy = true;
-        _process(image, camera).whenComplete(() => _busy = false);
+        _process(image, camera)
+            .catchError((Object e) => debugPrint('frame processing failed: $e'))
+            .whenComplete(() => _busy = false);
       });
     } catch (e) {
       setState(() => _error = 'Camera / model initialisation failed: $e');
