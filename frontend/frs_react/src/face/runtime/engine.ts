@@ -19,6 +19,9 @@ export interface EngineInfo {
     landmarkerDelegate: string;
     embeddingBackend: string;
     modelId: string;
+    /** ms to download + initialise each part (they load in parallel) */
+    landmarkerInitMs: number;
+    embedderInitMs: number;
 }
 
 /**
@@ -31,18 +34,26 @@ export class FaceEngine {
     private lastVideoTs = -1;
     private imageLandmarker: Promise<LandmarkerHandle> | null = null;
 
-    private constructor(private readonly videoLandmarker: LandmarkerHandle, private readonly embedder: EmbedderClient) { }
+    private constructor(private readonly videoLandmarker: LandmarkerHandle, private readonly embedder: EmbedderClient,
+        private readonly initMs: { landmarker: number; embedder: number }) { }
 
     static async create(): Promise<FaceEngine> {
-        const [landmarker, embedder] = await Promise.all([
-            createLandmarker({ ...FACE_CONFIG.landmarker, runningMode: "VIDEO" }),
-            EmbedderClient.create({
+        const timed = async <T>(p: Promise<T>): Promise<[T, number]> => {
+            const t0 = performance.now();
+            const v = await p;
+            return [v, performance.now() - t0];
+        };
+        const [[landmarker, landmarkerMs], [embedder, embedderMs]] = await Promise.all([
+            timed(createLandmarker({ ...FACE_CONFIG.landmarker, runningMode: "VIDEO" })),
+            timed(EmbedderClient.create({
                 modelUrl: FACE_CONFIG.embedding.modelUrl,
+                modelId: FACE_CONFIG.embedding.modelId,
                 wasmBase: FACE_CONFIG.ortWasmBase,
                 inputSize: FACE_CONFIG.embedding.inputSize,
-            }),
+                webgpu: FACE_CONFIG.embedding.webgpu,
+            })),
         ]);
-        return new FaceEngine(landmarker, embedder);
+        return new FaceEngine(landmarker, embedder, { landmarker: landmarkerMs, embedder: embedderMs });
     }
 
     get info(): EngineInfo {
@@ -50,6 +61,8 @@ export class FaceEngine {
             landmarkerDelegate: this.videoLandmarker.delegate,
             embeddingBackend: this.embedder.backend,
             modelId: FACE_CONFIG.embedding.modelId,
+            landmarkerInitMs: this.initMs.landmarker,
+            embedderInitMs: this.initMs.embedder,
         };
     }
 
@@ -85,8 +98,8 @@ export class FaceEngine {
     }
 
     /** Note: transfers `face.crop`'s buffer, the ImageData is unusable afterwards. */
-    embed(face: AlignedFace): Promise<EmbeddingResult> {
-        return this.embedder.embed(face.crop, FACE_CONFIG.embedding.flipTTA);
+    embed(face: AlignedFace, flip: boolean = FACE_CONFIG.embedding.flipTTA): Promise<EmbeddingResult> {
+        return this.embedder.embed(face.crop, flip);
     }
 
     dispose(): void {

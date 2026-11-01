@@ -5,6 +5,8 @@
  *   public/mediapipe/wasm/              MediaPipe Tasks Vision wasm (from node_modules)
  *   public/models/mediapipe/face_landmarker.task
  *   public/models/arcface/w600k_mbf.onnx  (MobileFaceNet ArcFace, 512-d, from InsightFace buffalo_s)
+ *   public/models/arcface/w600k_mbf.fp16.onnx  same model with float16 weight storage (6.9 MB instead of
+ *       13.6 MB, identical results) - the file the browser downloads
  *
  * The InsightFace pretrained models are released for non-commercial research use only. To use your
  * own weights export them with backend/frs/tools/export_onnx.py and set NEXT_PUBLIC_EMBEDDING_MODEL_URL.
@@ -16,6 +18,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFi
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { inflateRawSync } from "node:zlib";
+import { convertWeightsToFp16 } from "./onnx-fp16.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pub = path.join(root, "public");
@@ -94,6 +97,12 @@ async function main() {
         writeFileSync(arcface, onnx);
     } else if (createHash("sha256").update(readFileSync(arcface)).digest("hex") !== W600K_MBF_SHA256) {
         console.warn("  note: public/models/arcface/w600k_mbf.onnx differs from the InsightFace release (custom model?)");
+    }
+    const fp16 = path.join(pub, "models/arcface/w600k_mbf.fp16.onnx");
+    if (force || !existsSync(fp16)) {
+        const { model, converted } = convertWeightsToFp16(new Uint8Array(readFileSync(arcface)));
+        writeFileSync(fp16, model);
+        console.log(`  ${path.relative(root, fp16)}: ${converted} weight tensors stored as float16`);
     }
     console.log("Done.");
 }

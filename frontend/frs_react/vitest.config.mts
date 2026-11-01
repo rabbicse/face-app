@@ -8,6 +8,6 @@ export default defineConfig({
     test: {
         environment: "node",
         // the legacy *_test.ts files under src/dnn are jasmine specs copied from tfjs-models
-        include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+        include: ["src/**/*.test.ts", "src/**/*.test.tsx", "scripts/**/*.test.mjs"],
     },
 });

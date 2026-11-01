@@ -83,6 +83,37 @@ pitch bias on a frontal photo.
 
 Use `/examples/pipeline` to see the timings, pose, quality metrics and the aligned crop live.
 
+### Start-up and download (measured)
+
+`frontend/frs_react/e2e/benchmark.mjs`, headless Chromium with a fake webcam on a 4-core container. The
+GPU is software emulated there, so per-frame landmark times (~150 ms) are far slower than on real hardware;
+the download sizes and relative changes carry over.
+
+| | first version | optimised |
+| --- | --- | --- |
+| downloaded on the first visit | 38.6 MB | **16.4 MB** |
+| downloaded on later visits | 26.6 MB (model re-fetched) | **0** |
+| embedding model init, first / later visit | 3.2 s / 1.2 s | **1.2 s / 0.35 s** |
+| first embedding on screen, first / later visit | 6.8 s / 4.4 s | **4.5 s / 3.3 s** |
+
+What changed:
+
+* The model was fetched twice (once per ONNX Runtime backend tried) and, being larger than what the HTTP
+  cache keeps, again on every visit. It is now downloaded once into Cache Storage (keyed by model id).
+* The browser loads `w600k_mbf.fp16.onnx`: the same weights stored as float16 (13.6 -> 6.9 MB). ONNX Runtime
+  folds the casts at load, so speed is unchanged; on 636 faces the embeddings have cosine >= 0.99998 to fp32.
+  (Weight-only int8 would be 3.5 MB but was 65% slower - ONNX Runtime does not fold that dequantisation - and
+  moved similarities by up to 0.01.) Produced by `scripts/onnx-fp16.mjs` / `tools/compress_onnx.py`.
+* ONNX Runtime's WASM-only build instead of the WebGPU one: 2.7 instead of 4.9 MB gzip, faster to compile,
+  and no GPU contention with MediaPipe. This model needs ~50 ms on 2 WASM threads (measured in the same
+  container), plenty for <= 8 embeddings per second. `NEXT_PUBLIC_EMBEDDING_WEBGPU=true` opts back in.
+* WASM threads = cores - 1 (max 4), leaving a core to the camera / MediaPipe / UI.
+* Identification computes single-pass embeddings (registration keeps flip TTA): half the compute per frame;
+  the 3-frame fusion already averages the noise (single pass vs TTA: cosine 0.986, similarity to TTA
+  templates changes by 0.0075 on average, 42 faces).
+* Warping + the quality check (a canvas readback) only run on frames that may produce an embedding instead
+  of every frame.
+
 ## 4. Security considerations (read before production)
 
 Moving inference to the client changes the trust model: **the server can no longer tell whether a vector came

@@ -30,6 +30,8 @@ const FaceLoginForm = () => {
     const aggregator = useMemo(() => new IdentificationAggregator(), []);
     const blink = useMemo(() => new BlinkDetector(), []);
     const lastEmbedAt = useRef(0);
+    const lastAlignAt = useRef(0);
+    const lastTone = useRef<OverlayTone>("neutral");
     const queryInFlight = useRef(false);
     const nextQueryAt = useRef(0);
 
@@ -71,20 +73,24 @@ const FaceLoginForm = () => {
         } else {
             if (face.eyesClosed !== undefined) blink.update(face.eyesClosed, ts);
             const live = !FACE_CONFIG.liveness.requireBlink || blink.hasRecentBlink(ts, FACE_CONFIG.liveness.blinkWindowMs);
-            // identification has no head pose requirement, only image quality
-            const aligned = engine.align(video, face, w, h);
-            if (!aligned.quality.ok) {
+            // identification has no head pose requirement, only image quality. Warping + the quality check
+            // (a canvas readback) only run as often as an embedding may be computed; other frames reuse the verdict.
+            const minGap = 1000 / FACE_CONFIG.maxEmbeddingsPerSecond;
+            const aligned = ts - lastAlignAt.current >= minGap && !engine.embedderBusy ? engine.align(video, face, w, h) : null;
+            if (aligned) lastAlignAt.current = ts;
+            if (!aligned) {
+                tone = lastTone.current;
+            } else if (!aligned.quality.ok) {
                 tone = "warn";
                 setMessage(QUALITY_MESSAGES[aligned.quality.issues[0]]);
             } else {
                 tone = "good";
                 if (!live) setMessage("Please blink to continue");
                 else if (ts >= nextQueryAt.current) setMessage("Recognizing...");
-                const minGap = 1000 / FACE_CONFIG.maxEmbeddingsPerSecond;
                 const canQuery = !queryInFlight.current && ts >= nextQueryAt.current;
-                if (canQuery && !engine.embedderBusy && ts - lastEmbedAt.current >= minGap) {
+                if (canQuery && ts - lastEmbedAt.current >= minGap) {
                     lastEmbedAt.current = ts;
-                    void engine.embed(aligned).then(({ embedding }) => {
+                    void engine.embed(aligned, FACE_CONFIG.embedding.identificationFlipTTA).then(({ embedding }) => {
                         const fused = aggregator.add(embedding, performance.now());
                         const stillLive = !FACE_CONFIG.liveness.requireBlink
                             || blink.hasRecentBlink(performance.now(), FACE_CONFIG.liveness.blinkWindowMs);
@@ -95,6 +101,7 @@ const FaceLoginForm = () => {
                 }
             }
         }
+        lastTone.current = tone;
         if (overlayRef.current) {
             drawOverlay(overlayRef.current, w, h, face, tone);
         }

@@ -49,6 +49,7 @@ const FaceRegistrationForm = () => {
     const plan = searchParams.get("plan") === "quick" ? QUICK_REGISTRATION_PLAN : FULL_REGISTRATION_PLAN;
     const session = useMemo(() => new RegistrationSession(plan), [plan]);
     const lastEmbedAt = useRef(0);
+    const lastTone = useRef<OverlayTone>("neutral");
 
     const [phase, setPhase] = useState<Phase>("capturing");
     const [message, setMessage] = useState("Initializing camera...");
@@ -88,7 +89,11 @@ const FaceRegistrationForm = () => {
             const rel = session.relativePose(face.pose);
             const hint = poseHint(rel.yaw, rel.pitch, target.label);
             setMessage(`${target.instruction}${hint ? ` - ${hint}` : ""}`);
+        } else if (engine.embedderBusy || ts - lastEmbedAt.current < 1000 / FACE_CONFIG.maxEmbeddingsPerSecond) {
+            // right pose, but no embedding is due on this frame: skip the warp + readback, keep the last verdict
+            tone = lastTone.current === "warn" ? "warn" : "good";
         } else {
+            lastEmbedAt.current = ts;
             const aligned = engine.align(video, face, w, h);
             if (!aligned.quality.ok) {
                 tone = "warn";
@@ -96,26 +101,23 @@ const FaceRegistrationForm = () => {
             } else {
                 tone = "good";
                 setMessage(`${target.instruction} - hold still`);
-                const minGap = 1000 / FACE_CONFIG.maxEmbeddingsPerSecond;
-                if (!engine.embedderBusy && ts - lastEmbedAt.current >= minGap) {
-                    lastEmbedAt.current = ts;
-                    const pose = face.pose;
-                    const quality = aligned.quality.score;
-                    void engine.embed(aligned).then(({ embedding }) => {
-                        const result = session.offer({ embedding, pose, quality, timestamp: performance.now() });
-                        if (result === "inconsistent") {
-                            setMessage("Only one person please");
-                        }
-                        if (result === "accepted" || result === "complete") {
-                            setProgress(session.progress);
-                        }
-                        if (result === "complete") {
-                            void submit();
-                        }
-                    }).catch(e => console.error("embedding failed", e));
-                }
+                const pose = face.pose;
+                const quality = aligned.quality.score;
+                void engine.embed(aligned).then(({ embedding }) => {
+                    const result = session.offer({ embedding, pose, quality, timestamp: performance.now() });
+                    if (result === "inconsistent") {
+                        setMessage("Only one person please");
+                    }
+                    if (result === "accepted" || result === "complete") {
+                        setProgress(session.progress);
+                    }
+                    if (result === "complete") {
+                        void submit();
+                    }
+                }).catch(e => console.error("embedding failed", e));
             }
         }
+        lastTone.current = tone;
         if (overlayRef.current) {
             drawOverlay(overlayRef.current, w, h, face, tone, session.fraction);
         }

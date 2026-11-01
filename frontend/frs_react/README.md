@@ -52,4 +52,10 @@ npx tsc --noEmit
 ```
 
 `e2e/face-flow.mjs` runs registration and login in Chromium with a fake webcam video (see the header of the
-file for the steps).
+file for the steps); `e2e/benchmark.mjs` measures downloads, model init and per-stage timings (cold and warm
+start).
+
+Assets: `npm run setup:face` stores `public/models/arcface/w600k_mbf.onnx` and derives `w600k_mbf.fp16.onnx`
+(float16 weight storage, half the size, same embeddings), which is what the browser downloads. The model is
+kept in Cache Storage after the first visit. ONNX Runtime runs as WASM by default
+(`NEXT_PUBLIC_EMBEDDING_WEBGPU=true` to try WebGPU first).

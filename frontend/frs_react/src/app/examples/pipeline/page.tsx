@@ -15,6 +15,7 @@ import { useVideoFrames } from "@/face/react/useVideoFrames";
 interface Stats {
     fps: number;
     detectMs: number;
+    alignMs: number;
     embedMs: number;
     yaw: number;
     pitch: number;
@@ -57,7 +58,9 @@ export default function PipelineInspectorPage() {
         if (!face) return;
         if (face.eyesClosed !== undefined) blink.current.update(face.eyesClosed, ts);
 
+        const t1 = performance.now();
         const aligned = engine.align(video, face, video.videoWidth, video.videoHeight);
+        const alignMs = performance.now() - t1;
         cropRef.current?.getContext("2d")?.putImageData(aligned.crop, 0, 0);
         if (!engine.embedderBusy) {
             void engine.embed(aligned).then(r => {
@@ -72,6 +75,7 @@ export default function PipelineInspectorPage() {
         setStats({
             fps: frameTimes.current.length,
             detectMs,
+            alignMs,
             embedMs: embedMs.current,
             ...face.pose,
             poseLabel: classifyPose(face.pose) ?? "-",
@@ -87,8 +91,10 @@ export default function PipelineInspectorPage() {
 
     const rows: [string, string][] = stats ? [
         ["Landmarker / embedding backend", engine ? `${engine.info.landmarkerDelegate} / ${engine.info.embeddingBackend}` : "-"],
+        ["Model init: landmarker / embedder (ms)", engine ? `${fmt(engine.info.landmarkerInitMs, 0)} / ${fmt(engine.info.embedderInitMs, 0)}` : "-"],
         ["Camera FPS processed", String(stats.fps)],
         ["Landmarks (ms)", fmt(stats.detectMs)],
+        ["Align + quality (ms)", fmt(stats.alignMs, 2)],
         ["Embedding incl. flip TTA (ms)", fmt(stats.embedMs)],
         ["Yaw / pitch / roll (deg)", `${fmt(stats.yaw)} / ${fmt(stats.pitch)} / ${fmt(stats.roll)}`],
         ["Pose class", stats.poseLabel],
