@@ -7,3 +7,4 @@ export * from "./landmarks";
 export * from "./quality";
 export * from "./registration";
 export * from "./identification";
+export * from "./liveness";

@@ -13,4 +13,8 @@ class AppConfig {
 
   /// Upper bound of embeddings computed per second while capturing.
   static const maxEmbeddingsPerSecond = 6;
+
+  /// Identification needs a blink first (stops printed photos); --dart-define=REQUIRE_BLINK=false for demos.
+  static const requireBlink = bool.fromEnvironment('REQUIRE_BLINK', defaultValue: true);
+  static const blinkWindowMs = 5000;
 }

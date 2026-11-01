@@ -55,6 +55,7 @@ NV21 buffer scores **0.998** against the Python reference. A different person sc
 | Head pose (roll, pitch, yaw) | required - guided capture: 3 frontal, 2 per side, 1 up, 1 down | **not used** |
 | Pose reference | non-frontal targets are relative to the user's own frontal pose (cancels camera placement) | - |
 | Consistency | each sample must match the samples collected so far (no person swap) | 3 consecutive frames must agree, then they are fused |
+| Liveness | eyes must be open in every sample | a blink within the last 5 s (open -> closed -> open) before the query is sent |
 | Sent | 9 embeddings + pose metadata | 1 fused embedding |
 | Stored (Qdrant) | 9 sample points + 1 fused template per person, cosine distance, one collection per model | - |
 | Decision | - | best person score >= `FRS_MATCH_THRESHOLD` (0.45) and >= `FRS_MATCH_MARGIN` (0.05) above the runner-up |
@@ -88,8 +89,12 @@ Moving inference to the client changes the trust model: **the server can no long
 from a live camera.** Anyone who obtains a stored or transmitted embedding can replay it, so treat embeddings
 like credentials and biometric data:
 
-* Use face login as a second factor, or add **liveness** - e.g. a random challenge (blink / turn to a side the
-  server picks) verified on the device, or a passive anti-spoofing model.
+* **Blink liveness is built in** (web: MediaPipe `eyeBlinkLeft/Right` blendshapes; mobile: ML Kit eye-open
+  probability). It stops printed photos and still images on a screen - verified in the e2e test, where the
+  still photo is refused and the same face with a few closed-eye frames logs in. It does **not** stop a replayed
+  video or a tampered client. Stronger options: a random server-chosen challenge (turn to a side, blink twice),
+  a passive anti-spoofing model, and using face login as a second factor. Disable for demos with
+  `NEXT_PUBLIC_REQUIRE_BLINK=false` / `--dart-define=REQUIRE_BLINK=false`.
 * On mobile, bind requests to a genuine app with **Play Integrity / App Attest**, and sign requests.
 * Serve the API over **https**, rate limit `/identify`, and don't return candidate scores to untrusted clients.
 * Encrypt embeddings at rest and let users delete them (`DELETE /api/v1/embeddings/persons/{id}`).

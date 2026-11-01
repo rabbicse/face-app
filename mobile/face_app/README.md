@@ -18,7 +18,7 @@ CameraImage (NV21 / BGRA)
 | Flow | Head pose | What is sent |
 | --- | --- | --- |
 | Registration | Guided: 3x frontal, 2x each side, 1x up, 1x down. Measured *relative to the user's own frontal pose*; side and up/down samples are accepted in either order | 9 embeddings + pose metadata |
-| Identification | none - any good-quality frame | 1 embedding fused from 3 consistent frames |
+| Identification | none - any good-quality frame, plus a recent blink (liveness, `--dart-define=REQUIRE_BLINK=false` to disable) | 1 embedding fused from 3 consistent frames |
 
 ## Setup
 
@@ -67,6 +67,7 @@ flutter test
 * `sessions_test.dart` - registration plan (order, baseline-relative poses, consistency checks) and the
   multi-frame identification aggregator.
 * `api_client_test.dart` - request / response format.
+* `liveness_test.dart` - blink detection.
 
 The NV21 path was additionally checked end to end against the real model: the crop sampled by
 `warpFaceFromFrame` from a rotated NV21 buffer gives an embedding with cosine 0.998 to the Python reference.

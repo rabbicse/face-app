@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../api/api_client.dart';
 import '../config.dart';
 import '../core/identification.dart';
+import '../core/liveness.dart';
 import '../core/pose.dart';
 import '../core/quality.dart';
 import '../core/registration.dart';
@@ -49,6 +50,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
   final _api = FaceApiClient();
   late final RegistrationSession _session = RegistrationSession(plan: widget.plan);
   final _aggregator = IdentificationAggregator();
+  final _blink = BlinkDetector();
   final _clock = Stopwatch()..start();
 
   bool _busy = false;
@@ -118,6 +120,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
     if (analysis == null) {
       message = 'No face detected';
       _aggregator.reset();
+      _blink.reset();
     } else if (_registering) {
       final target = _session.currentTarget;
       if (target == null) return;
@@ -140,16 +143,24 @@ class _CaptureScreenState extends State<CaptureScreen> {
         }
       }
     } else {
-      // identification: quality gate only, no head pose requirement
+      // identification: quality gate + blink, no head pose requirement
+      final eyesOpen = analysis.face.eyeOpenProbability;
+      if (eyesOpen != null) _blink.update(1 - eyesOpen, now);
+      final live = !AppConfig.requireBlink || _blink.hasRecentBlink(now, AppConfig.blinkWindowMs);
       if (!analysis.quality.ok) {
         message = qualityMessages[analysis.quality.issues.first]!;
         tone = Colors.amber;
       } else {
         tone = Colors.greenAccent;
+        if (!live) {
+          message = 'Please blink to continue';
+        } else if (now >= _nextQueryMs) {
+          message = 'Recognizing...';
+        }
         if (!_queryInFlight && now >= _nextQueryMs && now - _lastEmbedMs >= 1000 ~/ AppConfig.maxEmbeddingsPerSecond) {
           _lastEmbedMs = now;
           final fused = _aggregator.add(await engine.embed(analysis), now);
-          if (fused != null) unawaited(_identify(fused));
+          if (fused != null && live) unawaited(_identify(fused));
         }
       }
     }

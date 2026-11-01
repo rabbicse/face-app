@@ -1,4 +1,4 @@
-import type { FaceLandmarker as FaceLandmarkerType } from "@mediapipe/tasks-vision";
+import type { FaceLandmarker as FaceLandmarkerType, FaceLandmarkerResult } from "@mediapipe/tasks-vision";
 import { FaceGeometry, faceGeometryFromMesh } from "../core/landmarks";
 
 export interface LandmarkerOptions {
@@ -26,7 +26,7 @@ export async function createLandmarker(opts: LandmarkerOptions): Promise<Landmar
                 minFaceDetectionConfidence: 0.6,
                 minFacePresenceConfidence: 0.6,
                 minTrackingConfidence: 0.5,
-                outputFaceBlendshapes: false,
+                outputFaceBlendshapes: true, // eyeBlinkLeft / eyeBlinkRight for liveness
                 outputFacialTransformationMatrixes: true,
             });
             return { landmarker, delegate };
@@ -38,15 +38,26 @@ export async function createLandmarker(opts: LandmarkerOptions): Promise<Landmar
     throw lastError;
 }
 
-export function detectInVideo(handle: LandmarkerHandle, video: HTMLVideoElement, timestampMs: number): FaceGeometry | null {
-    const result = handle.landmarker.detectForVideo(video, timestampMs);
+function toGeometry(result: FaceLandmarkerResult, width: number, height: number): FaceGeometry | null {
     const face = result.faceLandmarks?.[0];
-    return face ? faceGeometryFromMesh(face, video.videoWidth, video.videoHeight, result.facialTransformationMatrixes?.[0]?.data) : null;
+    if (!face) return null;
+    const geometry = faceGeometryFromMesh(face, width, height, result.facialTransformationMatrixes?.[0]?.data);
+    const shapes = result.faceBlendshapes?.[0]?.categories;
+    if (shapes) {
+        const score = (name: string) => shapes.find(c => c.categoryName === name)?.score;
+        const left = score("eyeBlinkLeft"), right = score("eyeBlinkRight");
+        if (left !== undefined && right !== undefined) {
+            geometry.eyesClosed = Math.min(left, right);
+        }
+    }
+    return geometry;
+}
+
+export function detectInVideo(handle: LandmarkerHandle, video: HTMLVideoElement, timestampMs: number): FaceGeometry | null {
+    return toGeometry(handle.landmarker.detectForVideo(video, timestampMs), video.videoWidth, video.videoHeight);
 }
 
 export function detectInImage(handle: LandmarkerHandle, image: HTMLImageElement | HTMLCanvasElement | ImageBitmap,
     width: number, height: number): FaceGeometry | null {
-    const result = handle.landmarker.detect(image);
-    const face = result.faceLandmarks?.[0];
-    return face ? faceGeometryFromMesh(face, width, height, result.facialTransformationMatrixes?.[0]?.data) : null;
+    return toGeometry(handle.landmarker.detect(image), width, height);
 }

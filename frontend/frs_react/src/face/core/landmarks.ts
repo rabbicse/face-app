@@ -21,6 +21,8 @@ export interface FaceGeometry {
     pose: HeadPose;
     /** distance between the eye centres in source pixels */
     interOcular: number;
+    /** 0 (open) .. 1 (shut) for the *less* closed eye, when the model provides it (blink detection) */
+    eyesClosed?: number;
 }
 
 /** MediaPipe face mesh indices (468 / 478 point topology). */

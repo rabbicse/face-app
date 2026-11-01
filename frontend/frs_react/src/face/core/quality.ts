@@ -9,6 +9,8 @@ export interface QualityMetrics {
     sharpness: number;
     /** mean luma (0..255) of the aligned crop */
     brightness: number;
+    /** 0 (open) .. 1 (shut); ignored when unknown */
+    eyesClosed?: number;
 }
 
 export interface QualityThresholds {
@@ -19,6 +21,7 @@ export interface QualityThresholds {
     maxBrightness: number;
     /** fraction of the box that may lie outside the frame */
     maxOutside: number;
+    maxEyesClosed: number;
 }
 
 export const DEFAULT_QUALITY: QualityThresholds = {
@@ -27,9 +30,10 @@ export const DEFAULT_QUALITY: QualityThresholds = {
     minBrightness: 50,
     maxBrightness: 215,
     maxOutside: 0.05,
+    maxEyesClosed: 0.5,
 };
 
-export type QualityIssue = "too_far" | "blurry" | "too_dark" | "too_bright" | "out_of_frame";
+export type QualityIssue = "too_far" | "blurry" | "too_dark" | "too_bright" | "out_of_frame" | "eyes_closed";
 
 export interface QualityReport {
     ok: boolean;
@@ -49,6 +53,7 @@ export function assessQuality(m: QualityMetrics, t: QualityThresholds = DEFAULT_
     if (m.sharpness < t.minSharpness) issues.push("blurry");
     if (m.brightness < t.minBrightness) issues.push("too_dark");
     if (m.brightness > t.maxBrightness) issues.push("too_bright");
+    if (m.eyesClosed !== undefined && m.eyesClosed > t.maxEyesClosed) issues.push("eyes_closed");
 
     const clamp = (v: number) => Math.max(0, Math.min(1, v));
     const size = clamp(m.interOcular / (2 * t.minInterOcular));
@@ -66,4 +71,5 @@ export const QUALITY_MESSAGES: Record<QualityIssue, string> = {
     too_dark: "Find better lighting",
     too_bright: "Too bright, avoid direct light",
     out_of_frame: "Center your face in the frame",
+    eyes_closed: "Keep your eyes open",
 };

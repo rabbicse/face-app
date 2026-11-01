@@ -19,4 +19,10 @@ export const FACE_CONFIG = {
     camera: { width: 640, height: 480, frameRate: 30 },
     /** max embeddings per second computed while waiting for a match / pose */
     maxEmbeddingsPerSecond: 8,
+    liveness: {
+        /** identification needs a blink first: stops printed photos / still images (set to "false" for demos) */
+        requireBlink: process.env.NEXT_PUBLIC_REQUIRE_BLINK !== "false",
+        /** how long a blink keeps the session "live" */
+        blinkWindowMs: 5000,
+    },
 } as const;

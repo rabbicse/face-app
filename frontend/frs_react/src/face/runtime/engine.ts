@@ -77,7 +77,10 @@ export class FaceEngine {
         const gray = toGray(crop.data, size, size);
         const sharpness = laplacianVariance(gray, size, size);
         const brightness = meanValue(gray);
-        const quality = assessQuality({ box: geometry.box, frameWidth, frameHeight, interOcular: geometry.interOcular, sharpness, brightness }, thresholds);
+        const quality = assessQuality({
+            box: geometry.box, frameWidth, frameHeight, interOcular: geometry.interOcular, sharpness, brightness,
+            eyesClosed: geometry.eyesClosed,
+        }, thresholds);
         return { geometry, crop, quality, sharpness, brightness };
     }
 

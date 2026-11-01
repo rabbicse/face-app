@@ -4,10 +4,13 @@
  *   1. backend:  cd backend/frs/src && QDRANT_LOCATION=:memory: FRS_ENABLE_SERVER_INFERENCE=false uvicorn api.server:app --port 5000
  *   2. web:      npm run build && npm start
  *   3. video:    ffmpeg -loop 1 -i ../../backend/frs/samples/480.jpg -vf "scale=480:480,pad=640:480:80:0:white,format=yuv420p" -t 2 -r 15 /tmp/face.y4m
- *   4. run:      FAKE_VIDEO=/tmp/face.y4m node e2e/face-flow.mjs        (needs `npm i -D playwright` or a global playwright)
+ *   4. run:      FAKE_VIDEO=/tmp/face.y4m BLINK_VIDEO=/tmp/blink.y4m node e2e/face-flow.mjs
+ *                (needs `npm i -D playwright` or a global playwright)
  *
- * Registers the face with the quick (frontal only) plan, logs in with the same face and prints the
- * pipeline timings reported by /examples/pipeline.
+ * Registers the face with the quick (frontal only) plan, checks that the still photo is refused at login
+ * (liveness: no blink), logs in with BLINK_VIDEO (the same photo with a few closed-eye frames) and prints the
+ * pipeline timings reported by /examples/pipeline. Without BLINK_VIDEO, build the app with
+ * NEXT_PUBLIC_REQUIRE_BLINK=false and the login is done with FAKE_VIDEO.
  */
 import { createRequire } from "node:module";
 
@@ -16,22 +19,30 @@ const { chromium } = require("playwright");
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const video = process.env.FAKE_VIDEO;
+const blinkVideo = process.env.BLINK_VIDEO;
 if (!video) {
     console.error("set FAKE_VIDEO to a .y4m / .mjpeg file");
     process.exit(2);
 }
 
-const browser = await chromium.launch({
-    args: [
-        "--use-fake-ui-for-media-stream",
-        "--use-fake-device-for-media-stream",
-        `--use-file-for-fake-video-capture=${video}`,
-        "--enable-unsafe-webgpu",
-    ],
-});
-const context = await browser.newContext({ permissions: ["camera"] });
-const page = await context.newPage();
-page.on("console", m => { if (["error", "warning"].includes(m.type())) console.log(`[browser ${m.type()}] ${m.text()}`); });
+/** the fake camera is chosen at launch, so every video gets its own browser */
+const browsers = [];
+async function openPage(videoFile) {
+    const browser = await chromium.launch({
+        args: [
+            "--use-fake-ui-for-media-stream",
+            "--use-fake-device-for-media-stream",
+            `--use-file-for-fake-video-capture=${videoFile}`,
+            "--enable-unsafe-webgpu",
+        ],
+    });
+    browsers.push(browser);
+    const page = await (await browser.newContext({ permissions: ["camera"] })).newPage();
+    page.on("console", m => { if (m.type() === "error") console.log(`[browser error] ${m.text()}`); });
+    return page;
+}
+
+const page = await openPage(video);
 
 const step = async (name, fn) => {
     const t = Date.now();
@@ -45,10 +56,20 @@ try {
         await page.getByText("Face enrolled successfully!").waitFor({ timeout: 90_000 });
     });
 
+    if (blinkVideo) {
+        await step("still photo is refused (no blink)", async () => {
+            await page.goto(`${BASE}/face/login`);
+            await page.getByText("Please blink to continue").waitFor({ timeout: 60_000 });
+            await page.waitForTimeout(8000);
+            if (await page.getByText("Welcome, E2E User!").isVisible()) throw new Error("photo was accepted");
+        });
+    }
+
     await step("face login", async () => {
-        await page.goto(`${BASE}/face/login`);
-        await page.getByText("Welcome, E2E User!").waitFor({ timeout: 60_000 });
-        await page.waitForURL(/\/dashboard\?/, { timeout: 15_000 });
+        const loginPage = blinkVideo ? await openPage(blinkVideo) : page;
+        await loginPage.goto(`${BASE}/face/login`);
+        await loginPage.getByText("Welcome, E2E User!").waitFor({ timeout: 60_000 });
+        await loginPage.waitForURL(/\/dashboard\?/, { timeout: 15_000 });
     });
 
     await step("pipeline inspector", async () => {
@@ -61,5 +82,5 @@ try {
         }
     });
 } finally {
-    await browser.close();
+    await Promise.all(browsers.map(b => b.close()));
 }

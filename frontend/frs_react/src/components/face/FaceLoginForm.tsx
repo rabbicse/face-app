@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FACE_CONFIG } from "@/face/config";
 import { identifyEmbedding, PersonInfo } from "@/face/api";
 import { IdentificationAggregator } from "@/face/core/identification";
+import { BlinkDetector } from "@/face/core/liveness";
 import { QUALITY_MESSAGES } from "@/face/core/quality";
 import { FaceCamera } from "@/face/react/FaceCamera";
 import { drawOverlay, OverlayTone } from "@/face/react/overlay";
@@ -27,6 +28,7 @@ const FaceLoginForm = () => {
     const { ready: cameraReady, error: cameraError } = useCamera(videoRef);
 
     const aggregator = useMemo(() => new IdentificationAggregator(), []);
+    const blink = useMemo(() => new BlinkDetector(), []);
     const lastEmbedAt = useRef(0);
     const queryInFlight = useRef(false);
     const nextQueryAt = useRef(0);
@@ -64,8 +66,11 @@ const FaceLoginForm = () => {
 
         if (!face) {
             aggregator.reset();
+            blink.reset();
             setMessage("No face detected");
         } else {
+            if (face.eyesClosed !== undefined) blink.update(face.eyesClosed, ts);
+            const live = !FACE_CONFIG.liveness.requireBlink || blink.hasRecentBlink(ts, FACE_CONFIG.liveness.blinkWindowMs);
             // identification has no head pose requirement, only image quality
             const aligned = engine.align(video, face, w, h);
             if (!aligned.quality.ok) {
@@ -73,13 +78,17 @@ const FaceLoginForm = () => {
                 setMessage(QUALITY_MESSAGES[aligned.quality.issues[0]]);
             } else {
                 tone = "good";
+                if (!live) setMessage("Please blink to continue");
+                else if (ts >= nextQueryAt.current) setMessage("Recognizing...");
                 const minGap = 1000 / FACE_CONFIG.maxEmbeddingsPerSecond;
                 const canQuery = !queryInFlight.current && ts >= nextQueryAt.current;
                 if (canQuery && !engine.embedderBusy && ts - lastEmbedAt.current >= minGap) {
                     lastEmbedAt.current = ts;
                     void engine.embed(aligned).then(({ embedding }) => {
                         const fused = aggregator.add(embedding, performance.now());
-                        if (fused && !queryInFlight.current) {
+                        const stillLive = !FACE_CONFIG.liveness.requireBlink
+                            || blink.hasRecentBlink(performance.now(), FACE_CONFIG.liveness.blinkWindowMs);
+                        if (fused && stillLive && !queryInFlight.current) {
                             void query(fused);
                         }
                     }).catch(e => console.error("embedding failed", e));

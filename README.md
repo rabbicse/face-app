@@ -13,6 +13,7 @@
 - **Guided registration**: frontal, left/right and up/down samples, checked with head pose (yaw, pitch, roll)
   measured relative to the user's own frontal pose.
 - **Fast identification**: no pose requirement; quality-gated frames, 3-frame fusion, vector search in Qdrant.
+- **Blink liveness**: login needs a blink, so a printed photo or a still image is refused.
 - **Web, Android and iOS share one vector space**: same model file, same alignment, tested against shared
   golden values.
 - **Legacy server-side inference** (RetinaFace + ArcFace r100, PyTorch) is still available for photo uploads.

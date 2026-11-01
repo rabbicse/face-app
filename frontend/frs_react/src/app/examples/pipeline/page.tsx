@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { dot } from "@/face/core/embedding";
 import { classifyPose } from "@/face/core/pose";
+import { BlinkDetector } from "@/face/core/liveness";
 import { FaceCamera } from "@/face/react/FaceCamera";
 import { drawOverlay } from "@/face/react/overlay";
 import { useCamera } from "@/face/react/useCamera";
@@ -23,6 +24,8 @@ interface Stats {
     sharpness: number;
     brightness: number;
     issues: string;
+    eyesClosed: number;
+    blinks: number;
     similarity: number | null;
 }
 
@@ -41,6 +44,7 @@ export default function PipelineInspectorPage() {
     const frameTimes = useRef<number[]>([]);
     const embedMs = useRef(NaN);
     const lastUi = useRef(0);
+    const blink = useRef(new BlinkDetector());
 
     useVideoFrames(videoRef, !!engine && ready, (video, ts) => {
         if (!engine) return;
@@ -51,6 +55,7 @@ export default function PipelineInspectorPage() {
 
         if (overlayRef.current) drawOverlay(overlayRef.current, video.videoWidth, video.videoHeight, face, face ? "good" : "neutral");
         if (!face) return;
+        if (face.eyesClosed !== undefined) blink.current.update(face.eyesClosed, ts);
 
         const aligned = engine.align(video, face, video.videoWidth, video.videoHeight);
         cropRef.current?.getContext("2d")?.putImageData(aligned.crop, 0, 0);
@@ -74,6 +79,8 @@ export default function PipelineInspectorPage() {
             sharpness: aligned.sharpness,
             brightness: aligned.brightness,
             issues: aligned.quality.issues.join(", ") || "none",
+            eyesClosed: face.eyesClosed ?? NaN,
+            blinks: blink.current.count,
             similarity: reference.current && latest.current ? dot(reference.current, latest.current) : null,
         });
     });
@@ -88,6 +95,7 @@ export default function PipelineInspectorPage() {
         ["Eye distance (px)", fmt(stats.interOcular, 0)],
         ["Sharpness / brightness", `${fmt(stats.sharpness, 0)} / ${fmt(stats.brightness, 0)}`],
         ["Quality issues", stats.issues],
+        ["Eyes closed score / blinks", `${fmt(stats.eyesClosed, 2)} / ${stats.blinks}`],
         ["Cosine similarity to reference", stats.similarity === null ? "press 'Set reference'" : fmt(stats.similarity, 3)],
     ] : [];
 

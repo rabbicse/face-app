@@ -52,6 +52,7 @@ describe("quality gate", () => {
         [{ brightness: 20 }, "too_dark"],
         [{ brightness: 250 }, "too_bright"],
         [{ box: { x: 550, y: 100, width: 200, height: 250 } }, "out_of_frame"],
+        [{ eyesClosed: 0.9 }, "eyes_closed"],
     ])("flags %o as %s", (patch, issue) => {
         const r = assessQuality({ ...good, ...patch }, DEFAULT_QUALITY);
         expect(r.ok).toBe(false);
