@@ -1,0 +1,31 @@
+# Lightweight API (embedding store / search). Used by Vercel's Python runtime and by `uv sync`;
+# the full server-side inference stack (torch, OpenCV, ...) stays in requirements.txt.
+[project]
+name = "frs-api"
+version = "1.0.0"
+description = "Face recognition API: stores and searches face embeddings computed on the client devices"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.5",
+    "uvicorn==0.32.1",
+    "pydantic==2.10.0",
+    "qdrant-client==1.12.1",
+    "numpy==2.1.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.3.4",
+    "httpx==0.27.2",
+    "opencv-python-headless==4.10.0.84",
+    "scikit-image==0.24.0",
+    "onnxruntime==1.20.1",
+]
+
+[tool.uv]
+# an application, not a library: only install the dependencies
+package = false
+
+[tool.vercel]
+# explicit, so Vercel never picks the legacy Flask app in src/app.py
+entrypoint = "main:app"

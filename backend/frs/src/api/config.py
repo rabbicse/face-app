@@ -32,6 +32,10 @@ QDRANT_PORT = int(os.getenv('QDRANT_PORT', 6333))
 QDRANT_COLLECTION_NAME = os.getenv('QDRANT_COLLECTION_NAME', 'face_collection')
 # Use ":memory:" for an embedded, non persistent Qdrant (tests / demos) or a path for local on-disk storage.
 QDRANT_LOCATION = os.getenv('QDRANT_LOCATION')
+# Full URL of a remote Qdrant, e.g. a Qdrant Cloud cluster (https://xyz.cloud.qdrant.io:6333) + its API key.
+# Takes precedence over QDRANT_HOST / QDRANT_PORT.
+QDRANT_URL = os.getenv('QDRANT_URL')
+QDRANT_API_KEY = os.getenv('QDRANT_API_KEY')
 
 # ---- client side embeddings ----
 # Embeddings from different models live in different vector spaces, so every model gets its own

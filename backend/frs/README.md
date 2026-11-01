@@ -57,11 +57,12 @@ The web and mobile clients compute the 512-d face embedding on the device; this 
 searches vectors, so it needs neither a GPU nor PyTorch:
 
 ```bash
-pip install -r requirements-api.txt
-cd src
-QDRANT_LOCATION=:memory: FRS_ENABLE_SERVER_INFERENCE=false uvicorn api.server:app --port 5000
+pip install -r requirements-api.txt        # or: uv sync
+QDRANT_LOCATION=:memory: FRS_ENABLE_SERVER_INFERENCE=false uvicorn main:app --port 5000
 # or build the slim image: docker build -f Dockerfile.api -t frs-api .
 ```
+
+Deploying to Vercel (free) with Qdrant Cloud: [../../docs/deploy-vercel.md](../../docs/deploy-vercel.md).
 
 | Endpoint | Purpose |
 | --- | --- |
@@ -77,6 +78,7 @@ different models are never compared.
 | --- | --- | --- |
 | `FRS_ENABLE_SERVER_INFERENCE` | `true` | also mount the legacy image endpoints (needs torch + weights; skipped automatically if missing) |
 | `QDRANT_HOST` / `QDRANT_PORT` | `localhost` / `6333` | Qdrant server |
+| `QDRANT_URL` / `QDRANT_API_KEY` | - | remote Qdrant, e.g. a Qdrant Cloud cluster (takes precedence over host / port) |
 | `QDRANT_LOCATION` | - | `:memory:` or a directory for embedded Qdrant (tests, demos) |
 | `FRS_EMBEDDING_MODELS` | `w600k_mbf` | accepted model ids (comma separated) |
 | `FRS_MATCH_THRESHOLD` | `0.45` | minimum cosine similarity for a match |

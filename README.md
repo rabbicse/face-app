@@ -62,6 +62,8 @@ cd mobile/face_app
 tool/setup_models.sh && flutter run --dart-define=FRS_API=http://<your-ip>:5000
 ```
 
+**Deploy for free** (Vercel + Qdrant Cloud): see [docs/deploy-vercel.md](docs/deploy-vercel.md).
+
 ### Embedding API
 
 | Method | Endpoint | Body |

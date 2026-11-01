@@ -12,9 +12,13 @@
  * own weights export them with backend/frs/tools/export_onnx.py and set NEXT_PUBLIC_EMBEDDING_MODEL_URL.
  *
  * Usage: node scripts/setup-face-assets.mjs [--force]
+ *
+ * On Vercel (VERCEL=1) only what the deployed site loads is put into public/: the fp32 model stays out of
+ * the deployment and the WebGPU runtime is skipped unless NEXT_PUBLIC_EMBEDDING_WEBGPU=true.
  */
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { inflateRawSync } from "node:zlib";
@@ -23,6 +27,8 @@ import { convertWeightsToFp16 } from "./onnx-fp16.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pub = path.join(root, "public");
 const force = process.argv.includes("--force");
+const deployBuild = process.env.VERCEL === "1";
+const webgpu = process.env.NEXT_PUBLIC_EMBEDDING_WEBGPU === "true";
 
 const LANDMARKER_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 const BUFFALO_S_URL = "https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_s.zip";
@@ -79,7 +85,7 @@ function extractFromZip(zip, wantedName) {
 async function main() {
     console.log("Setting up face recognition assets");
     copyDir(path.join(root, "node_modules/onnxruntime-web/dist"), path.join(pub, "ort"),
-        f => /^ort-wasm.*\.(wasm|mjs)$/.test(f));
+        f => /^ort-wasm.*\.(wasm|mjs)$/.test(f) && (!deployBuild || webgpu || !f.includes(".jsep.")));
     copyDir(path.join(root, "node_modules/@mediapipe/tasks-vision/wasm"), path.join(pub, "mediapipe/wasm"));
 
     const landmarker = path.join(pub, "models/mediapipe/face_landmarker.task");
@@ -88,7 +94,10 @@ async function main() {
         writeFileSync(landmarker, await download(LANDMARKER_URL));
     }
 
-    const arcface = path.join(pub, "models/arcface/w600k_mbf.onnx");
+    // the browser loads the fp16 copy; on deploy builds the fp32 original is kept out of public/
+    const arcface = deployBuild
+        ? path.join(os.tmpdir(), "face-assets", "w600k_mbf.onnx")
+        : path.join(pub, "models/arcface/w600k_mbf.onnx");
     if (force || !existsSync(arcface)) {
         mkdirSync(path.dirname(arcface), { recursive: true });
         const onnx = extractFromZip(await download(BUFFALO_S_URL), "w600k_mbf.onnx");
@@ -100,6 +109,7 @@ async function main() {
     }
     const fp16 = path.join(pub, "models/arcface/w600k_mbf.fp16.onnx");
     if (force || !existsSync(fp16)) {
+        mkdirSync(path.dirname(fp16), { recursive: true });
         const { model, converted } = convertWeightsToFp16(new Uint8Array(readFileSync(arcface)));
         writeFileSync(fp16, model);
         console.log(`  ${path.relative(root, fp16)}: ${converted} weight tensors stored as float16`);

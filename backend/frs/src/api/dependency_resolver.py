@@ -36,6 +36,8 @@ def get_qdrant_client():
     if config.QDRANT_LOCATION:
         return QdrantClient(location=config.QDRANT_LOCATION) if config.QDRANT_LOCATION == ':memory:' \
             else QdrantClient(path=config.QDRANT_LOCATION)
+    if config.QDRANT_URL:
+        return QdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY or None)
     return QdrantClient(url=f'http://{config.QDRANT_HOST}:{config.QDRANT_PORT}')
 
 

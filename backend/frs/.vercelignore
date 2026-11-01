@@ -1,0 +1,11 @@
+# not needed by the deployed API (keeps the function bundle small)
+docs/
+samples/
+tests/
+examples/
+setups/
+tools/
+models/
+Dockerfile
+Dockerfile.api
+requirements*.txt
