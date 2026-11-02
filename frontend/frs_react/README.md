@@ -23,11 +23,11 @@ npm run dev        # predev copies the WASM runtimes and downloads the models in
 
 Configuration (`.env.local`): `NEXT_PUBLIC_API_HOST` (default `http://localhost`), `NEXT_PUBLIC_API_PORT`
 (`5000`) or `NEXT_PUBLIC_API_BASE_URL`; `NEXT_PUBLIC_EMBEDDING_MODEL_URL` / `NEXT_PUBLIC_EMBEDDING_MODEL_ID` to
-use your own model (see `backend/frs/tools/export_onnx.py`); `NEXT_PUBLIC_REQUIRE_BLINK=false` disables the
+use your own model (see the PyTorch exporter on the `stable-v01` branch (`backend/frs/tools/export_onnx.py`)); `NEXT_PUBLIC_REQUIRE_BLINK=false` disables the
 blink liveness check for demos.
 
-Pages: `/registration` -> `/face/registration` (guided multi-pose capture), `/login` -> `/face/login`
-(identification, no pose requirement), `/examples` (pipeline inspector, photo comparison, quick registration).
+Pages: `/registration` -> `/face/registration` (guided multi-pose capture), `/face/login` (identification, no
+pose requirement; `/login` redirects here), `/dashboard` (who matched, sign out, delete face data), `/examples` (pipeline inspector, photo comparison, quick registration).
 
 The app sends `Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` headers (see `next.config.ts`) so
 ONNX Runtime can use threads; resources from other origins need CORS/CORP headers.

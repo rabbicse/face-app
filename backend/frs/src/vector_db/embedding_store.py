@@ -1,3 +1,4 @@
+import logging
 import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence
@@ -7,9 +8,8 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import FieldCondition, Filter, FilterSelector, MatchValue, PointStruct
 from qdrant_client.models import Distance, PayloadSchemaType, VectorParams
 
-from utils.vision_utils import log_utils
 
-logger = log_utils.LogUtils().get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass

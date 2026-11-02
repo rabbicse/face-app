@@ -1,0 +1,12 @@
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.venv
+.vercel
+tests
+tools
+examples
+samples
+uv.lock
+Dockerfile
+.dockerignore

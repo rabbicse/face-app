@@ -1,12 +1,14 @@
 "use client";
 
-import { RefObject, useEffect, useState } from "react";
+import { RefObject, useCallback, useEffect, useState } from "react";
 import { FACE_CONFIG } from "../config";
 import { startCamera, stopCamera } from "../runtime/camera";
+import { describeCameraError } from "./cameraErrors";
 
 export function useCamera(videoRef: RefObject<HTMLVideoElement | null>, enabled = true) {
     const [ready, setReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [attempt, setAttempt] = useState(0);
 
     useEffect(() => {
         if (!enabled) return;
@@ -24,14 +26,22 @@ export function useCamera(videoRef: RefObject<HTMLVideoElement | null>, enabled 
                 stream = s;
                 setReady(true);
             })
-            .catch(e => setError(e instanceof Error ? e.message : String(e)));
+            .catch(e => {
+                console.warn("camera failed to start", e);
+                if (!cancelled) setError(describeCameraError(e));
+            });
 
         return () => {
             cancelled = true;
             stopCamera(video, stream);
             setReady(false);
         };
-    }, [videoRef, enabled]);
+    }, [videoRef, enabled, attempt]);
 
-    return { ready, error };
+    const retry = useCallback(() => {
+        setError(null);
+        setAttempt(a => a + 1);
+    }, []);
+
+    return { ready, error, retry };
 }

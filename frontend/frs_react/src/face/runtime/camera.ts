@@ -7,7 +7,7 @@ export interface CameraOptions {
 
 export async function startCamera(video: HTMLVideoElement, opts: CameraOptions): Promise<MediaStream> {
     if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("Camera access is not available (a secure https:// or localhost origin is required)");
+        throw Object.assign(new Error("Camera access needs a secure https:// or localhost origin"), { name: "InsecureContextError" });
     }
     const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,

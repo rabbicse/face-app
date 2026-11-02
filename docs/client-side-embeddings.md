@@ -134,5 +134,5 @@ like credentials and biometric data:
 ## 5. Model licence
 
 `w600k_mbf.onnx` comes from InsightFace's `buffalo_s` pack, released for non-commercial research use. For a
-commercial product train / license your own model, export it with `backend/frs/tools/export_onnx.py` and
+commercial product train / license your own model, export it with the PyTorch exporter on the `stable-v01` branch (`backend/frs/tools/export_onnx.py`) and
 register its id in `FRS_EMBEDDING_MODELS`.

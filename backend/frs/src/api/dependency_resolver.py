@@ -3,32 +3,6 @@ from functools import lru_cache
 from api import config
 
 
-def get_face_service():
-    # imported lazily: pulls in torch and the model weights (only needed for server side inference)
-    from api.services.face_service import FaceService
-
-    return FaceService(det_model_path=config.DETECTION_MODEL_PATH,
-                       det_model_tar=config.DETECTION_MODEL_TAR_PATH,
-                       det_network=config.DETECTION_NETWORK,
-                       rec_model_path=config.RECOGNITION_MODEL_PATH,
-                       rec_network=config.RECOGNITION_NETWORK,
-                       device=config.DEVICE)
-
-
-def get_cache_service():
-    from cache.redis_service import RedisCacheService
-
-    return RedisCacheService()
-
-
-def get_vector_db_context():
-    from vector_db.qdrant_context import VectorDbContext
-
-    return VectorDbContext(host=config.QDRANT_HOST,
-                           port=config.QDRANT_PORT,
-                           collection_name=config.QDRANT_COLLECTION_NAME)
-
-
 @lru_cache(maxsize=1)
 def get_qdrant_client():
     from qdrant_client import QdrantClient

@@ -15,13 +15,14 @@ const EXAMPLES = [
     {
         href: "/face/registration?plan=quick&fullname=Demo&email=demo@example.com",
         title: "Quick registration",
-        description: "Frontal only enrolment (3 samples) - handy for kiosks or for testing with a static camera.",
+        description: "Frontal only enrolment (3 samples) - handy for kiosks or quick tests. Samples must differ slightly, so a frozen image cannot finish it.",
     },
 ];
 
 export default function ExamplesPage() {
     return (
         <main className="mx-auto max-w-3xl space-y-4 p-6">
+            <Link href="/" className="inline-block py-2 text-sm underline underline-offset-4">Back to start</Link>
             <h1 className="text-2xl font-bold">On-device face recognition examples</h1>
             <div className="grid gap-4">
                 {EXAMPLES.map(e => (

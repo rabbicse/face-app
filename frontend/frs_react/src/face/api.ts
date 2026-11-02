@@ -73,6 +73,17 @@ export function registerEmbeddings(person: PersonInfo, samples: readonly Registe
     }, opts.signal, opts.fetchImpl);
 }
 
+/** Removes every stored vector of this person. */
+export async function deletePerson(personId: number, opts: { fetchImpl?: typeof fetch } = {}): Promise<void> {
+    const fetchImpl = opts.fetchImpl ?? fetch;
+    const model = encodeURIComponent(FACE_CONFIG.embedding.modelId);
+    const res = await fetchImpl(`${FACE_CONFIG.apiBaseUrl}/api/v1/embeddings/persons/${personId}?model=${model}`, {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+    });
+    if (!res.ok) throw new ApiError(res.status, res.statusText);
+}
+
 export function identifyEmbedding(embedding: Float32Array,
     opts: { signal?: AbortSignal; fetchImpl?: typeof fetch; topK?: number } = {}): Promise<IdentifyResponse> {
     return postJson<IdentifyResponse>("/api/v1/embeddings/identify", {

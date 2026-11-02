@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { CameraConsent } from "@/components/face/CameraConsent";
+import { CameraProblem, ENGINE_ERROR_MESSAGE } from "@/components/face/CameraProblem";
 import { FACE_CONFIG } from "@/face/config";
 import { identifyEmbedding, PersonInfo } from "@/face/api";
 import { IdentificationAggregator } from "@/face/core/identification";
@@ -12,6 +14,8 @@ import { BlinkDetector } from "@/face/core/liveness";
 import { QUALITY_MESSAGES } from "@/face/core/quality";
 import { FaceCamera } from "@/face/react/FaceCamera";
 import { drawOverlay, OverlayTone } from "@/face/react/overlay";
+import { saveSignedIn } from "@/face/react/demoSession";
+import { useAnnouncement } from "@/face/react/useAnnouncement";
 import { useCamera } from "@/face/react/useCamera";
 import { useFaceEngine } from "@/face/react/useFaceEngine";
 import { useVideoFrames } from "@/face/react/useVideoFrames";
@@ -25,7 +29,8 @@ const FaceLoginForm = () => {
     const overlayRef = useRef<HTMLCanvasElement>(null);
 
     const { engine, error: engineError } = useFaceEngine();
-    const { ready: cameraReady, error: cameraError } = useCamera(videoRef);
+    const [cameraOn, setCameraOn] = useState(false);
+    const { ready: cameraReady, error: cameraError, retry: retryCamera } = useCamera(videoRef, cameraOn);
 
     const aggregator = useMemo(() => new IdentificationAggregator(), []);
     const blink = useMemo(() => new BlinkDetector(), []);
@@ -36,7 +41,6 @@ const FaceLoginForm = () => {
     const nextQueryAt = useRef(0);
 
     const [message, setMessage] = useState("Look at the camera");
-    const [attempts, setAttempts] = useState(0);
     const [person, setPerson] = useState<PersonInfo | null>(null);
 
     const query = async (embedding: Float32Array) => {
@@ -45,15 +49,15 @@ const FaceLoginForm = () => {
             const res = await identifyEmbedding(embedding);
             if (res.status === 0 && res.person) {
                 setPerson(res.person);
-                const params = new URLSearchParams({ name: res.person.name, email: res.person.email ?? "" });
-                setTimeout(() => router.push(`/dashboard?${params}`), 2000);
+                saveSignedIn({ personId: res.person.person_id, name: res.person.name, email: res.person.email, score: res.score });
+                setTimeout(() => router.push("/dashboard"), 2000);
             } else {
-                setAttempts(a => a + 1);
-                setMessage(res.reason === "no_enrolled_faces" ? "No faces registered yet" : "Face not recognized, keep looking at the camera");
+                setMessage(res.reason === "no_enrolled_faces" ? "No faces are registered yet. Create an account first." : "Face not recognized. Keep looking at the camera.");
                 nextQueryAt.current = performance.now() + RETRY_DELAY_MS;
             }
         } catch (e) {
-            setMessage(`Server error: ${e instanceof Error ? e.message : String(e)}`);
+            console.warn("identify failed", e);
+            setMessage("Can't reach the server. Trying again...");
             nextQueryAt.current = performance.now() + 3 * RETRY_DELAY_MS;
         } finally {
             queryInFlight.current = false;
@@ -107,13 +111,40 @@ const FaceLoginForm = () => {
         }
     });
 
-    const fatal = engineError || cameraError;
+    const fatal = engineError ? ENGINE_ERROR_MESSAGE : cameraError;
+    const status = person ? "Face match found!" : message;
+    const announcement = useAnnouncement(status);
+
+    if (!cameraOn) {
+        return (
+            <Card className="w-full max-w-xl">
+                <CardContent className="p-6">
+                    <CameraConsent
+                        title="Sign in with your face"
+                        intro="Your camera stays off until you turn it on."
+                        points={[
+                            "Photos and video stay on this device.",
+                            "Only a numeric face signature is sent to the server, to find your match.",
+                            "On your first visit, this page downloads about 16 MB of face models.",
+                        ]}
+                        actionLabel="Turn on camera"
+                        backHref="/"
+                        onAccept={() => setCameraOn(true)}
+                    />
+                    <p className="mt-4 text-center text-sm text-muted-foreground">
+                        Not registered yet? <Link className="text-foreground underline underline-offset-4" href="/registration">Create an account</Link>
+                    </p>
+                </CardContent>
+            </Card>
+        );
+    }
 
     return (
         <Card className="w-full max-w-xl">
             <CardContent className="space-y-4 p-6">
-                <h2 className="text-xl font-semibold">Login with your face</h2>
-                <FaceCamera ref={videoRef} overlayRef={overlayRef} className="aspect-[4/3] w-full">
+                <h1 className="text-xl font-semibold">Sign in with your face</h1>
+                {/* stays mounted when hidden: "Try again" restarts the camera on the same video element */}
+                <FaceCamera ref={videoRef} overlayRef={overlayRef} className={`aspect-[4/3] w-full ${fatal ? "hidden" : ""}`}>
                     {(!engine || !cameraReady) && !fatal && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
                             <Loader2 className="h-8 w-8 animate-spin" />
@@ -124,17 +155,24 @@ const FaceLoginForm = () => {
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
                             <CheckCircle2 className="h-12 w-12 text-green-400" />
                             <h2 className="mt-2 text-xl font-bold">Welcome, {person.name}!</h2>
-                            <p className="text-sm">Redirecting...</p>
+                            <p className="text-sm">Taking you to your page...</p>
                         </div>
                     )}
                 </FaceCamera>
-                <p className="min-h-6 text-center font-medium" aria-live="polite">
-                    {fatal ? <span className="text-red-600">{fatal}</span> : person ? "Face match found!" : message}
-                </p>
-                {attempts >= 5 && !person && (
-                    <p className="text-center text-sm text-muted-foreground">
-                        Not registered yet? <Link className="underline" href="/registration">Create an account</Link>
-                    </p>
+                {fatal ? (
+                    <CameraProblem message={fatal} backHref="/"
+                        onRetry={engineError ? () => window.location.reload() : retryCamera} />
+                ) : (
+                    <>
+                        <p className="min-h-6 text-center font-medium" aria-hidden="true">{status}</p>
+                        <p className="sr-only" aria-live="polite">{announcement}</p>
+                    </>
+                )}
+                {!person && (
+                    <div className="space-y-1 text-center text-sm text-muted-foreground">
+                        <p>Not registered yet? <Link className="text-foreground underline underline-offset-4" href="/registration">Create an account</Link></p>
+                        {!fatal && <p><Link className="text-foreground underline underline-offset-4" href="/">Back to start</Link></p>}
+                    </div>
                 )}
             </CardContent>
         </Card>

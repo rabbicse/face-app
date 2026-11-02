@@ -1,11 +1,9 @@
-# not needed by the deployed API (keeps the function bundle small)
-docs/
-samples/
-tests/
-examples/
-setups/
-tools/
-models/
-Dockerfile
-Dockerfile.api
-requirements*.txt
+# not needed by the deployed API (keeps the function bundle small); anchored to this directory
+/samples/
+/tests/
+/examples/
+/tools/
+/models/
+/Dockerfile
+/.dockerignore
+/requirements*.txt

@@ -1,9 +1,10 @@
 /**
  * End-to-end smoke test of the on-device pipeline in a real Chromium with a fake webcam.
  *
- *   1. backend:  cd backend/frs/src && QDRANT_LOCATION=:memory: FRS_ENABLE_SERVER_INFERENCE=false uvicorn api.server:app --port 5000
+ *   1. backend:  cd backend/frs && QDRANT_LOCATION=:memory: uvicorn main:app --port 5000
  *   2. web:      npm run build && npm start
- *   3. video:    ffmpeg -loop 1 -i ../../backend/frs/samples/480.jpg -vf "scale=480:480,pad=640:480:80:0:white,format=yuv420p" -t 2 -r 15 /tmp/face.y4m
+ *   3. video:    ffmpeg -loop 1 -i ../../backend/frs/samples/480.jpg -vf "scale=480:480,pad=640:480:80:0:white,noise=alls=25:allf=t,format=yuv420p" -t 2 -r 15 /tmp/face.y4m
+ *                (the noise matters: enrolment rejects near-identical samples, so a frozen image never finishes)
  *   4. run:      FAKE_VIDEO=/tmp/face.y4m BLINK_VIDEO=/tmp/blink.y4m node e2e/face-flow.mjs
  *                (needs `npm i -D playwright` or a global playwright)
  *
@@ -53,13 +54,15 @@ const step = async (name, fn) => {
 try {
     await step("quick registration", async () => {
         await page.goto(`${BASE}/face/registration?plan=quick&fullname=E2E%20User&email=e2e@example.com`);
+        await page.getByRole("button", { name: "I agree, turn on camera" }).click();
         await page.getByText("Face enrolled successfully!").waitFor({ timeout: 90_000 });
     });
 
     if (blinkVideo) {
         await step("still photo is refused (no blink)", async () => {
             await page.goto(`${BASE}/face/login`);
-            await page.getByText("Please blink to continue").waitFor({ timeout: 60_000 });
+            await page.getByRole("button", { name: "Turn on camera" }).click();
+            await page.getByText("Please blink to continue").first().waitFor({ timeout: 60_000 });
             await page.waitForTimeout(8000);
             if (await page.getByText("Welcome, E2E User!").isVisible()) throw new Error("photo was accepted");
         });
@@ -68,8 +71,10 @@ try {
     await step("face login", async () => {
         const loginPage = blinkVideo ? await openPage(blinkVideo) : page;
         await loginPage.goto(`${BASE}/face/login`);
+        await loginPage.getByRole("button", { name: "Turn on camera" }).click();
         await loginPage.getByText("Welcome, E2E User!").waitFor({ timeout: 60_000 });
-        await loginPage.waitForURL(/\/dashboard\?/, { timeout: 15_000 });
+        await loginPage.waitForURL(/\/dashboard$/, { timeout: 15_000 });
+        await loginPage.getByRole("heading", { name: "Signed in as E2E User" }).waitFor({ timeout: 15_000 });
     });
 
     await step("pipeline inspector", async () => {

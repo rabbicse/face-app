@@ -1,10 +1,13 @@
 "use client"
 
 import React, { useCallback, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CameraConsent } from "@/components/face/CameraConsent";
+import { CameraProblem, ENGINE_ERROR_MESSAGE } from "@/components/face/CameraProblem";
 import { FACE_CONFIG } from "@/face/config";
 import { registerEmbeddings } from "@/face/api";
 import { QUALITY_MESSAGES } from "@/face/core/quality";
@@ -12,8 +15,11 @@ import { FULL_REGISTRATION_PLAN, QUICK_REGISTRATION_PLAN, RegistrationSession } 
 import { POSE_TARGETS } from "@/face/core/pose";
 import { FaceCamera } from "@/face/react/FaceCamera";
 import { drawOverlay, OverlayTone } from "@/face/react/overlay";
+import { clearPendingEnrolment, readPendingEnrolment } from "@/face/react/demoSession";
 import { personIdFromEmail } from "@/face/react/personId";
+import { useAnnouncement } from "@/face/react/useAnnouncement";
 import { useCamera } from "@/face/react/useCamera";
+import { useHydrated } from "@/face/react/useHydrated";
 import { useFaceEngine } from "@/face/react/useFaceEngine";
 import { useVideoFrames } from "@/face/react/useVideoFrames";
 
@@ -44,7 +50,8 @@ const FaceRegistrationForm = () => {
     const overlayRef = useRef<HTMLCanvasElement>(null);
 
     const { engine, error: engineError } = useFaceEngine();
-    const { ready: cameraReady, error: cameraError } = useCamera(videoRef);
+    const [cameraOn, setCameraOn] = useState(false);
+    const { ready: cameraReady, error: cameraError, retry: retryCamera } = useCamera(videoRef, cameraOn);
 
     const plan = searchParams.get("plan") === "quick" ? QUICK_REGISTRATION_PLAN : FULL_REGISTRATION_PLAN;
     const session = useMemo(() => new RegistrationSession(plan), [plan]);
@@ -54,23 +61,34 @@ const FaceRegistrationForm = () => {
     const [phase, setPhase] = useState<Phase>("capturing");
     const [message, setMessage] = useState("Initializing camera...");
     const [progress, setProgress] = useState(session.progress);
-    const [error, setError] = useState<string | null>(null);
+    const [uploadFailed, setUploadFailed] = useState(false);
 
-    const email = searchParams.get("email") ?? "";
-    const fullname = searchParams.get("fullname") ?? "";
+    // The registration form leaves these in sessionStorage. URL parameters only serve the demo link on /examples.
+    const identityLoaded = useHydrated();
+    const identity = useMemo(() => {
+        if (!identityLoaded) return null;
+        const fromUrl = { fullname: searchParams.get("fullname") ?? "", email: searchParams.get("email") ?? "" };
+        return fromUrl.email || fromUrl.fullname ? fromUrl : readPendingEnrolment();
+    }, [identityLoaded, searchParams]);
+    const email = identity?.email ?? "";
+    const fullname = identity?.fullname ?? "";
 
     const submit = useCallback(async () => {
         setPhase("uploading");
+        setUploadFailed(false);
         setMessage("Saving your face profile...");
         try {
             await registerEmbeddings(
                 { person_id: personIdFromEmail(email || fullname), name: fullname, email },
                 session.collected.map(s => ({ embedding: s.embedding, poseLabel: s.poseLabel, pose: s.pose, quality: s.quality })),
             );
+            clearPendingEnrolment();
             setPhase("done");
-            setTimeout(() => router.push("/login"), 3000);
+            setTimeout(() => router.push("/face/login"), 3000);
         } catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            console.warn("registration upload failed", e);
+            setUploadFailed(true);
+            setMessage("Your face profile was not saved");
             setPhase("failed");
         }
     }, [email, fullname, router, session]);
@@ -88,7 +106,7 @@ const FaceRegistrationForm = () => {
             tone = "warn";
             const rel = session.relativePose(face.pose);
             const hint = poseHint(rel.yaw, rel.pitch, target.label);
-            setMessage(`${target.instruction}${hint ? ` - ${hint}` : ""}`);
+            setMessage(`${target.instruction}${hint ? `. ${hint}.` : ""}`);
         } else if (engine.embedderBusy || ts - lastEmbedAt.current < 1000 / FACE_CONFIG.maxEmbeddingsPerSecond) {
             // right pose, but no embedding is due on this frame: skip the warp + readback, keep the last verdict
             tone = lastTone.current === "warn" ? "warn" : "good";
@@ -100,7 +118,7 @@ const FaceRegistrationForm = () => {
                 setMessage(QUALITY_MESSAGES[aligned.quality.issues[0]]);
             } else {
                 tone = "good";
-                setMessage(`${target.instruction} - hold still`);
+                setMessage(`${target.instruction}. Hold still.`);
                 const pose = face.pose;
                 const quality = aligned.quality.score;
                 void engine.embed(aligned).then(({ embedding }) => {
@@ -123,20 +141,52 @@ const FaceRegistrationForm = () => {
         }
     });
 
-    const fatal = engineError || cameraError;
+    const fatal = engineError ? ENGINE_ERROR_MESSAGE : cameraError;
+    const announcement = useAnnouncement(message);
+
+    if (!identityLoaded) return null;
+
+    if (!identity) {
+        return (
+            <Card className="w-full max-w-xl">
+                <CardContent className="space-y-4 p-6">
+                    <h1 className="text-xl font-semibold">Start with your name and email</h1>
+                    <p className="text-muted-foreground">Your face profile needs a name and email before the scan.</p>
+                    <Button asChild className="h-11 w-full"><Link href="/registration">Create an account</Link></Button>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (!cameraOn) {
+        return (
+            <Card className="w-full max-w-xl">
+                <CardContent className="p-6">
+                    <CameraConsent
+                        title="Before we scan your face"
+                        intro="Your camera stays off until you agree. You'll hold still, then turn your head slightly in a few directions."
+                        points={[
+                            "Photos and video stay on this device.",
+                            "Numeric face signatures, your name and your email are sent to the server. Face signatures are biometric data.",
+                            "They are kept until you delete them. You can delete them after you sign in.",
+                            "On your first visit, this page downloads about 16 MB of face models.",
+                        ]}
+                        actionLabel="I agree, turn on camera"
+                        backHref="/registration"
+                        onAccept={() => setCameraOn(true)}
+                    />
+                </CardContent>
+            </Card>
+        );
+    }
 
     return (
         <Card className="w-full max-w-xl">
             <CardContent className="space-y-4 p-6">
-                <div>
-                    <h2 className="text-xl font-semibold">Face registration</h2>
-                    <p className="text-sm text-muted-foreground">
-                        {fullname ? `${fullname}, ` : ""}we capture a few angles of your face. Only numeric face
-                        embeddings are sent to the server, never images.
-                    </p>
-                </div>
+                <h1 className="text-xl font-semibold">Scan your face</h1>
 
-                <FaceCamera ref={videoRef} overlayRef={overlayRef} className="aspect-[4/3] w-full">
+                {/* stays mounted when hidden: "Try again" restarts the camera on the same video element */}
+                <FaceCamera ref={videoRef} overlayRef={overlayRef} className={`aspect-[4/3] w-full ${fatal ? "hidden" : ""}`}>
                     {(!engine || !cameraReady) && !fatal && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
                             <Loader2 className="h-8 w-8 animate-spin" />
@@ -147,29 +197,44 @@ const FaceRegistrationForm = () => {
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
                             <CheckCircle2 className="h-12 w-12 text-green-400" />
                             <p className="mt-2 text-lg font-semibold">Face enrolled successfully!</p>
-                            <p className="text-sm">Redirecting to login...</p>
+                            <p className="text-sm">Taking you to sign in...</p>
                         </div>
                     )}
                 </FaceCamera>
 
-                <p className="min-h-6 text-center font-medium" aria-live="polite">
-                    {fatal ? <span className="text-red-600">{fatal}</span> : message}
-                </p>
+                {fatal ? (
+                    <CameraProblem message={fatal} backHref="/registration"
+                        onRetry={engineError ? () => window.location.reload() : retryCamera} />
+                ) : (
+                    <>
+                        <p className="min-h-6 text-center font-medium" aria-hidden="true">{message}</p>
+                        <p className="sr-only" aria-live="polite">{announcement}</p>
+                    </>
+                )}
 
-                <ol className="flex justify-center gap-2">
+                <ol className="flex flex-wrap justify-center gap-2" aria-label="Scan progress">
                     {progress.map(p => (
                         <li key={p.label}
+                            aria-current={session.currentTarget?.label === p.label ? "step" : undefined}
                             className={`rounded-full px-3 py-1 text-xs ${p.have >= p.need ? "bg-green-600 text-white" : session.currentTarget?.label === p.label ? "bg-blue-600 text-white" : "bg-muted"}`}>
                             {POSE_NAMES[p.label]} {p.have}/{p.need}
                         </li>
                     ))}
                 </ol>
 
-                {phase === "failed" && (
-                    <div className="space-y-2 text-center">
-                        <p className="text-sm text-red-600">Registration failed: {error}</p>
-                        <Button onClick={submit}>Retry upload</Button>
+                {phase === "failed" && uploadFailed && (
+                    <div role="alert" className="space-y-2 text-center">
+                        <p className="text-sm font-medium text-red-700">
+                            We couldn&apos;t reach the server. Your scan is still here, so you won&apos;t need to repeat it.
+                        </p>
+                        <Button className="h-11" onClick={submit}>Try saving again</Button>
                     </div>
+                )}
+
+                {phase !== "done" && !fatal && (
+                    <p className="text-center text-sm">
+                        <Link className="underline underline-offset-4" href="/registration">Cancel and go back</Link>
+                    </p>
                 )}
             </CardContent>
         </Card>

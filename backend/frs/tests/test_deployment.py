@@ -10,7 +10,7 @@ BACKEND = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 def test_main_entrypoint_imports_from_backend_root():
     # what `uvicorn main:app` and Vercel's runtime do: import main.py with backend/frs as the working dir
     code = 'import main; print(sorted(r.path for r in main.app.routes if r.path.startswith("/api")))'
-    env = {**os.environ, 'QDRANT_LOCATION': ':memory:', 'FRS_ENABLE_SERVER_INFERENCE': 'false', 'PYTHONPATH': ''}
+    env = {**os.environ, 'QDRANT_LOCATION': ':memory:', 'PYTHONPATH': ''}
     out = subprocess.run([sys.executable, '-c', code], cwd=BACKEND, env=env, capture_output=True, text=True, check=True)
     assert '/api/v1/embeddings/identify' in out.stdout and '/api/v1/health' in out.stdout
 

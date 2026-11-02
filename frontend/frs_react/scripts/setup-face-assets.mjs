@@ -9,11 +9,11 @@
  *       13.6 MB, identical results) - the file the browser downloads
  *
  * The InsightFace pretrained models are released for non-commercial research use only. To use your
- * own weights export them with backend/frs/tools/export_onnx.py and set NEXT_PUBLIC_EMBEDDING_MODEL_URL.
+ * own weights export them to ONNX (see the stable-v01 branch for the PyTorch exporter) and set NEXT_PUBLIC_EMBEDDING_MODEL_URL.
  *
  * Usage: node scripts/setup-face-assets.mjs [--force]
  *
- * On Vercel (VERCEL=1) only what the deployed site loads is put into public/: the fp32 model stays out of
+ * On deploy builds (VERCEL=1 or FACE_ASSETS_DEPLOY=1) only what the deployed site loads is put into public/: the fp32 model stays out of
  * the deployment and the WebGPU runtime is skipped unless NEXT_PUBLIC_EMBEDDING_WEBGPU=true.
  */
 import { createHash } from "node:crypto";
@@ -27,7 +27,8 @@ import { convertWeightsToFp16 } from "./onnx-fp16.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pub = path.join(root, "public");
 const force = process.argv.includes("--force");
-const deployBuild = process.env.VERCEL === "1";
+// slim asset set for deployments: Vercel builds and the Docker image (FACE_ASSETS_DEPLOY=1)
+const deployBuild = process.env.VERCEL === "1" || process.env.FACE_ASSETS_DEPLOY === "1";
 const webgpu = process.env.NEXT_PUBLIC_EMBEDDING_WEBGPU === "true";
 
 const LANDMARKER_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";

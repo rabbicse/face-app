@@ -14,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Facial Recognition System",
-  description: "Facial Recognition System frontend - Registration by face and metadata, 2FA with face after login with credentials, Login by only Face, Search by Face.",
+  title: { default: "Facial Recognition System", template: "%s | Facial Recognition System" },
+  description: "A demo of face sign-in where photos and video stay on your device and only a numeric face signature is sent to the server.",
 };
 
 export default function RootLayout({

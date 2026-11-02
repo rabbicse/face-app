@@ -1,35 +1,8 @@
 import os
 
-
-def _env_bool(name: str, default: bool) -> bool:
-    return os.getenv(name, str(default)).strip().lower() in ('1', 'true', 'yes', 'on')
-
-
-# ---- legacy server side inference (RetinaFace + ArcFace r100 on PyTorch) ----
-# Set FRS_ENABLE_SERVER_INFERENCE=false to run a lightweight API (no torch / model weights
-# needed) that only stores and searches embeddings produced on the client devices.
-ENABLE_SERVER_INFERENCE = _env_bool('FRS_ENABLE_SERVER_INFERENCE', True)
-
-# DETECTION_NETWORK = 'mobile0.25'
-DETECTION_NETWORK = os.getenv('FRS_DETECTION_NETWORK', 'resnet50')
-
-DETECTION_MODEL_PATH = os.path.abspath(os.getenv('FRS_DETECTION_MODEL_PATH', '../../models/Resnet50_Final.pth'))
-# DETECTION_MODEL_PATH = os.path.abspath('../../models/mobilenet0.25_Final.pth')
-DETECTION_MODEL_TAR_PATH = os.path.abspath(
-    os.getenv('FRS_DETECTION_MODEL_TAR_PATH', '../../models/mobilenetV1X0.25_pretrain.tar'))
-
-RECOGNITION_MODEL_PATH = os.path.abspath(
-    os.getenv('FRS_RECOGNITION_MODEL_PATH', '../../models/backbone_glint360k_r100.pth'))
-RECOGNITION_NETWORK = os.getenv('FRS_RECOGNITION_NETWORK', 'r100')
-# DEVICE = 'cuda:0'
-DEVICE = os.getenv('FRS_DEVICE', 'cpu')
-
-
 # vector database config
-# QDRANT_HOST = '192.168.97.67'
 QDRANT_HOST = os.getenv('QDRANT_HOST', 'localhost')
 QDRANT_PORT = int(os.getenv('QDRANT_PORT', 6333))
-QDRANT_COLLECTION_NAME = os.getenv('QDRANT_COLLECTION_NAME', 'face_collection')
 # Use ":memory:" for an embedded, non persistent Qdrant (tests / demos) or a path for local on-disk storage.
 QDRANT_LOCATION = os.getenv('QDRANT_LOCATION')
 # Full URL of a remote Qdrant, e.g. a Qdrant Cloud cluster (https://xyz.cloud.qdrant.io:6333) + its API key.

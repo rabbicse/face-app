@@ -28,11 +28,11 @@ tool/setup_models.sh          # copies / downloads assets/models/w600k_mbf.onnx 
 flutter pub get
 ```
 
-Start the backend (no GPU / torch needed for embedding-only mode):
+Start the backend (no GPU or PyTorch needed), or run the whole stack with `docker compose up -d`:
 
 ```bash
-cd backend/frs/src
-FRS_ENABLE_SERVER_INFERENCE=false uvicorn api.server:app --host 0.0.0.0 --port 5000
+cd backend/frs
+uvicorn main:app --host 0.0.0.0 --port 5000
 ```
 
 Run on a device or emulator (the default API URL `http://10.0.2.2:5000` is the host machine seen from the
@@ -76,6 +76,6 @@ The NV21 path was additionally checked end to end against the real model: the cr
 
 `w600k_mbf.onnx` is InsightFace's MobileFaceNet trained on WebFace600K (from the `buffalo_s` pack). The
 InsightFace pretrained models are licensed for **non-commercial research use only**. To use your own
-weights, export them with `backend/frs/tools/export_onnx.py`, replace the file in the web app and here, and
+weights, export them with the PyTorch exporter on the `stable-v01` branch (`backend/frs/tools/export_onnx.py`), replace the file in the web app and here, and
 register the new model id in the backend (`FRS_EMBEDDING_MODELS`) - embeddings of different models are
 never comparable.

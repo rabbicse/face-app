@@ -1,9 +1,6 @@
-import { LoginForm } from "@/components/forms/LoginForm"
+import { redirect } from "next/navigation"
 
+/** Face login is the only sign-in method in this demo. */
 export default function Page() {
-  return (
-    <div className="flex h-screen w-full items-center justify-center px-4">
-      <LoginForm />
-    </div>
-  )
+  redirect("/face/login")
 }

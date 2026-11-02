@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+coverage
+e2e
+public/models
+public/ort
+public/mediapipe
+.env*
+!.env.example
+*.tsbuildinfo
+Dockerfile
+.dockerignore
+README.md

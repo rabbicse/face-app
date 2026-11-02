@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ApiError, identifyEmbedding, registerEmbeddings } from "./api";
+import { ApiError, deletePerson, identifyEmbedding, registerEmbeddings } from "./api";
 import { decodeEmbedding } from "./core/embedding";
 
 function fakeFetch(status: number, body: unknown) {
@@ -8,6 +8,18 @@ function fakeFetch(status: number, body: unknown) {
 }
 
 describe("api client", () => {
+    it("deletes a person's vectors for the current model", async () => {
+        const fetchImpl = fakeFetch(200, { status: 0 });
+        await deletePerson(42, { fetchImpl });
+        const [url, init] = fetchImpl.mock.calls[0];
+        expect(String(url)).toMatch(/\/api\/v1\/embeddings\/persons\/42\?model=w600k_mbf$/);
+        expect(init?.method).toBe("DELETE");
+    });
+
+    it("reports a failed delete", async () => {
+        await expect(deletePerson(42, { fetchImpl: fakeFetch(500, {}) })).rejects.toBeInstanceOf(ApiError);
+    });
+
     it("sends base64 embeddings with pose metadata on registration", async () => {
         const fetchImpl = fakeFetch(200, { status: 0, message: "ok", stored_vectors: 2, min_consistency: 0.9 });
         const embedding = Float32Array.from({ length: 512 }, (_, i) => i / 512);
