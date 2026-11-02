@@ -1,7 +1,9 @@
-# FRS user guide
+# User guide
 
-A step-by-step walkthrough: run the app, register a face, log in with it, call the API, then develop on it
-and put it on the web.
+Run the app, register a face, sign in with it, then use the API and put it on the web. If you only want to try
+it, sections 2 and 3 take about five minutes.
+
+*Screenshots are real captures of the running app. The faces are AI-generated people, not real individuals.*
 
 1. [How it works](#1-how-it-works)
 2. [Run it with one command](#2-run-it-with-one-command)
@@ -34,7 +36,7 @@ The device does the face recognition work. The server never sees a photo.
 * **Login** fuses 3 consistent frames and needs a blink within 5 seconds. A match must reach a cosine
   similarity of 0.45 and beat the next person by 0.05.
 
-Design details and measurements: [client-side-embeddings.md](client-side-embeddings.md).
+Measured speed: [benchmarks.md](benchmarks.md). Design details: [client-side-embeddings.md](client-side-embeddings.md).
 
 ## 2. Run it with one command
 
@@ -66,23 +68,74 @@ curl http://localhost:3000/api/v1/health
 
 Stop it with `docker compose down`. Add `-v` to also delete all registered faces.
 
+> **On a Mac,** AirPlay Receiver often uses port 5000, which stops the API from starting. Start with
+> `FRS_API_PORT=5001 docker compose up -d`, or set it in `.env`, and use 5001 wherever this guide says 5000.
+
 ## 3. Demo: register and log in
 
-<!-- demo-screens -->
+### Register
 
-**Register**
+**1. Open the app.** Go to <http://localhost:3000> and choose **Create account**.
 
-1. Open <http://localhost:3000/registration>.
-2. Fill in your name and email, read what is stored, then choose **I agree, turn on camera** and allow camera access.
-3. Follow the on-screen pose guide: look straight ahead, then turn left, right, up and down. Samples are taken
-   automatically when your pose and the image quality are good.
+<img src="images/01-home.webp" alt="Home page with sign-in and create account buttons" width="560">
 
-**Log in**
+**2. Enter your name and email.** Your name is used to greet you, and your email identifies your face profile.
 
-1. Open <http://localhost:3000/face/login>.
-2. Choose **Turn on camera**, look at the camera and **blink**. A photo held up to the camera is refused because
-   it can't blink.
-3. You are recognised and see who you were matched as, with options to sign out or delete your face data.
+<img src="images/02-register-details.webp" alt="Registration form" width="420">
+
+**3. Read what happens to your data.** The camera stays off until you choose **I agree, turn on camera**. Your
+browser then asks for camera permission.
+
+<img src="images/03-register-consent.webp" alt="Consent screen" width="560">
+
+**4. Follow the guide.** Look straight ahead, then turn left, right, up and down as asked. There is no shutter
+button: samples are taken automatically when your pose and the image quality are good. The pills show your
+progress.
+
+<img src="images/05-scan-turn.webp" alt="Live scan with head-pose guide and progress pills" width="560">
+
+**5. You're registered.** The app takes you to sign-in automatically.
+
+<img src="images/06-scan-done.webp" alt="Registration complete" width="560">
+
+### Sign in
+
+**1. Turn on the camera.** Open <http://localhost:3000/face/login> and choose **Turn on camera**.
+
+<img src="images/07-signin-consent.webp" alt="Sign-in screen before the camera starts" width="560">
+
+**2. Look at the camera and blink.** A printed photo or still image is refused because it can't blink.
+
+<img src="images/08-signin-blink.webp" alt="Live sign-in asking for a blink" width="560">
+
+**3. You're recognised.**
+
+<img src="images/09-signin-welcome.webp" alt="Welcome message after a match" width="560">
+
+**4. Your page shows who you were matched as.** If that isn't you, choose **Not you? Try again**.
+
+<img src="images/10-signed-in.webp" alt="Signed-in page" width="420">
+
+### Delete your face data
+
+Choose **Delete my face data**, then **Delete permanently**. This removes your face signatures, name and email from
+the server, and you would need to register again to sign in.
+
+<img src="images/11-delete-confirm.webp" alt="Delete confirmation" width="420">
+
+### If the camera is blocked
+
+The app tells you what went wrong and how to fix it. Allow the camera in your browser's site settings, then choose
+**Try again**.
+
+<img src="images/14-camera-blocked.webp" alt="Camera blocked message with Try again and Back buttons" width="560">
+
+### On a phone
+
+The web app works in a phone browser too, but the camera needs https, so use a deployed copy (see
+[section 9](#9-deploy-on-the-web-for-free)) or the [mobile app](#7-mobile-app).
+
+<img src="images/15-phone-signin.webp" alt="Sign-in screen at phone size" width="280">
 
 ## 4. Explore the examples
 
@@ -91,6 +144,15 @@ Stop it with `docker compose down`. Add `-v` to also delete all registered faces
 | `/examples/pipeline` | live timings for each stage, head pose, quality, the aligned crop, similarity to a reference |
 | `/examples/compare` | two photos compared in the browser; nothing is uploaded |
 | `/examples` | index, including a quick frontal-only registration |
+
+**Pipeline inspector:** see the speed on your own device. These are the numbers behind the
+[benchmarks](benchmarks.md).
+
+![Pipeline inspector](images/12-pipeline-inspector.webp)
+
+**Compare two photos:** pick any two images to see how similar the model finds them.
+
+<img src="images/13-compare.webp" alt="Two AI-generated faces compared, scored as different people" width="560">
 
 ## 5. Use the API
 
@@ -114,7 +176,7 @@ print(json.dumps([x / n for x in v]))")
 curl -s -X POST $API/api/v1/embeddings/register -H 'Content-Type: application/json' -d "{
   \"model\": \"w600k_mbf\",
   \"person\": {\"person_id\": 1001, \"name\": \"Ada Lovelace\", \"email\": \"ada@example.com\"},
-  \"samples\": [{\"embedding\": $EMB, \"pose_label\": \"front\", \"pose\": {\"yaw\": 0, \"pitch\": 0, \"roll\": 0}, \"quality\": 0.9}]
+  \"samples\": [{\"embedding\": $EMB, \"pose_label\": \"frontal\", \"pose\": {\"yaw\": 0, \"pitch\": 0, \"roll\": 0}, \"quality\": 0.9}]
 }"
 ```
 
@@ -214,9 +276,9 @@ It takes about 15 minutes.
 | --- | --- |
 | Camera does not start | Browsers only allow the camera on https or `localhost`. Check the site's camera permission. |
 | Login keeps asking you to blink | Face the light and blink fully. For a demo, build the web image with `--build-arg NEXT_PUBLIC_REQUIRE_BLINK=false`. |
-| Port already in use | Set `FRS_WEB_PORT` / `FRS_API_PORT` in `.env`. |
+| Port already in use | Set `FRS_WEB_PORT` / `FRS_API_PORT` in `.env`. On a Mac, port 5000 is often AirPlay Receiver. |
 | `docker compose up` fails while building the web image | The build downloads the models from GitHub and Google Storage, so check network access and retry. |
-| Web app shows "Server error" | Check `docker compose logs api`. The API waits for Qdrant to become healthy before starting. |
+| Web app says "Can't reach the server" | Check `docker compose logs api`. The API waits for Qdrant to become healthy before starting. |
 | Start again from scratch | `docker compose down -v` deletes all registered faces. |
 
 > **Security note.** This project is a demo of the on-device approach. Before exposing it publicly, read the
