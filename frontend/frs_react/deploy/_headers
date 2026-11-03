@@ -1,0 +1,19 @@
+# Copied into out/ by `npm run build:static`. Read by Cloudflare Pages and Netlify; on another static host
+# (nginx, S3 + CloudFront, Firebase Hosting...) set the same response headers in its own config.
+#
+# Cross-origin isolation enables SharedArrayBuffer, which multi-threaded ONNX Runtime WASM needs.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+
+# Face models and WASM runtimes are large and only change with a new build.
+/models/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/ort/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+/mediapipe/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+# Next.js build output is content-hashed.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

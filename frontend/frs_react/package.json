@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:static": "NEXT_OUTPUT=export FACE_ASSETS_DEPLOY=1 npm run build && node scripts/prune-static-export.mjs out && cp deploy/_headers out/_headers",
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
