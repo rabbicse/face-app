@@ -40,16 +40,41 @@ Measured speed: [benchmarks.md](benchmarks.md). Design details: [client-side-emb
 
 ## 2. Run it with one command
 
-**You need:** [Docker](https://docs.docker.com/get-docker/) with Compose, a webcam, and a recent Chrome, Edge,
-Firefox or Safari.
+**You need:** a webcam, a recent Chrome, Edge, Firefox or Safari, and either Python 3.11+ with Node.js 22.12+
+(no Docker) or [Docker](https://docs.docker.com/get-docker/) with Compose.
 
 ```bash
 git clone https://github.com/rabbicse/face-app.git
 cd face-app
-docker compose up -d
 ```
 
-The first run builds the images, which takes a few minutes. To use published images instead of building,
+### Without Docker: `./run.sh`
+
+```bash
+./run.sh                  # development mode with hot reload
+./run.sh --prod           # optimised production build, no hot reload
+./run.sh --no-blink       # demo mode without the blink check
+```
+
+The first run creates `backend/frs/.venv`, installs the web packages and downloads the face models. The script
+then starts the API and the web app, picks free ports, waits until both answer and opens the browser. Ctrl+C
+stops everything.
+
+The vector database runs inside the API process, so no database server is needed. Registered faces are kept in
+`.run/qdrant`; `./run.sh reset` deletes them and `--memory` keeps nothing. To use a remote Qdrant instead, such as
+a free [Qdrant Cloud](https://cloud.qdrant.io) cluster, put `QDRANT_URL` and `QDRANT_API_KEY` in `.env`.
+
+Other commands: `./run.sh test` runs the CI checks, and `./run.sh mobile` runs the Flutter app against the API.
+
+### With Docker: `./docker.sh`
+
+```bash
+./docker.sh               # build if needed, start, wait until healthy, open the browser
+./docker.sh status        # also: stop, restart, logs [qdrant|api|web], reset, --no-blink, --rebuild
+```
+
+`./docker.sh` wraps `docker compose up -d`, and you can use Compose directly too. The first run builds the
+images, which takes a few minutes. To use published images instead of building,
 first run `cp .env.example .env` and set `FRS_IMAGE_NAMESPACE` to the Docker Hub user that publishes them.
 
 Check that everything is up:
@@ -150,9 +175,15 @@ The web app works in a phone browser too, but the camera needs https, so use a d
 
 ![Pipeline inspector](images/12-pipeline-inspector.webp)
 
-**Compare two photos:** pick any two images to see how similar the model finds them.
+**Compare two photos:** pick any two images to see how similar the model finds them. Two different people score
+near 0; two photos of the same person score well above the 0.45 match threshold.
 
-<img src="images/13-compare.webp" alt="Two AI-generated faces compared, scored as different people" width="560">
+| Different people: −0.08 | Same person: 0.98 |
+| --- | --- |
+| ![Two different AI-generated faces, scored as different people](images/13-compare.webp) | ![The same AI-generated face, mirrored, rotated and re-lit, scored as the same person](images/16-compare-match.webp) |
+
+The "same person" pair is one synthetic face, with the second copy mirrored, rotated 4°, re-cropped and re-lit.
+It shows how the result looks, not how accurate the model is on real photos.
 
 ## 5. Use the API
 
@@ -269,6 +300,28 @@ All API variables: [backend README](../backend/frs/README.md#configuration). Web
 
 Follow [deploy-free.md](deploy-free.md): Vercel for the web app and API, and Qdrant Cloud for the database.
 It takes about 15 minutes.
+
+### Deploy as a static site
+
+The web app is client-rendered: every page is a static HTML shell, and the face pipeline runs in the browser.
+You can therefore serve it as plain files from any CDN, with no Node.js server to scale.
+
+```bash
+cd frontend/frs_react
+NEXT_PUBLIC_API_BASE_URL=https://api.example.com npm run build:static   # writes out/ (about 75 MB)
+```
+
+1. Upload `out/` to a static host. `out/_headers` sets the required headers on Cloudflare Pages and Netlify.
+   Elsewhere, such as nginx or S3 with CloudFront, send these on every response:
+   `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. Without them, face
+   recognition falls back to a single thread and is slower.
+2. The browser calls the API directly, so set the API's `FRS_CORS_ORIGINS` to the site's origin and serve the API
+   over https.
+3. To scale the API, run more API instances behind a load balancer and use a Qdrant cluster or Qdrant Cloud.
+
+The build removes files the browser never loads (the fp32 model and ONNX Runtime's WebGPU builds), so every file
+fits the 25 MiB per-file limit that some hosts apply. Set `NEXT_PUBLIC_EMBEDDING_WEBGPU=true` at build time to keep
+WebGPU.
 
 ## 10. Troubleshooting
 

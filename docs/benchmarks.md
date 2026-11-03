@@ -24,6 +24,26 @@ Sampled from `/examples/pipeline` four times a second for 60 seconds (225 sample
 - The face signature runs in a Web Worker, at most 8 times a second, so it doesn't hold back the live preview.
 - The figure above uses two passes, as registration does. Sign-in uses a single pass; that was not timed separately.
 
+## Weaker device conditions
+
+The same machine with parts of the browser's acceleration switched off, to estimate how a weaker computer behaves.
+Each run sampled `/examples/pipeline` four times a second for 30 seconds, using the production build.
+
+| Condition | FPS (median, lowest) | Landmarks: median / 95th | Alignment: median / 95th | Face signature: median / 95th |
+| --- | --- | --- | --- | --- |
+| Normal: hardware GPU, 4 WASM threads | 30, 29 | 15.6 / 17.2 ms | 2.13 / 2.43 ms | 68.2 / 80.1 ms |
+| No hardware GPU (software WebGL) | **7, 7** | 92.6 / 107.8 ms | 1.38 / 1.60 ms | 82.1 / 89.1 ms |
+| Not cross-origin isolated (1 WASM thread) | 30, 27 | 13.8 / 14.7 ms | 1.80 / 1.90 ms | **86.5 / 88.9 ms** |
+| No WebGL at all | **does not run** | | | |
+
+- **Without a hardware GPU** the landmark model runs about 6 times slower and live tracking drops to 7 FPS. It
+  still works, but the guide feels laggy.
+- **Without cross-origin isolation** the browser can't share memory between threads, so the face model runs on
+  one thread and takes about 27% longer. The host must send the `Cross-Origin-Opener-Policy` and
+  `Cross-Origin-Embedder-Policy` headers (see [deploying a static build](guide.md#deploy-as-a-static-site)).
+- **Without WebGL** MediaPipe fails to start, so WebGL is a hard requirement.
+- Start-up was about the same in every case: landmark model 364–454 ms, face model 869–968 ms on a repeat visit.
+
 ## Start-up
 
 Time from opening `/examples/pipeline` to the first face signature on screen, in 3 fresh browser profiles.
@@ -76,7 +96,8 @@ Memory after loading 10,000 people: Qdrant 459 MiB, API 371 MiB (2 workers), web
   the screenshots comes from one synthetic face seen by a simulated camera, so it says nothing about real-world
   accuracy.
 - **Phones.** The Flutter app hasn't been benchmarked.
-- **Other computers and browsers.** Only this M1 and Chromium were tested.
+- **Other computers and browsers.** Only this M1 and Chromium were tested. The weaker conditions above are
+  simulated on the same machine, not real low-end hardware.
 - **Heavy traffic.** Search was timed one request at a time, not under concurrent load.
 - **Real cameras and lighting.** Real conditions can change detection and quality results.
 

@@ -32,6 +32,7 @@ npm run dev               # predev downloads models/WASM into public/ (scripts/s
 npm test                  # vitest (src/**/*.test.ts, scripts/**/*.test.mjs)
 npx vitest run src/face/core/pose.test.ts   # single file
 npm run lint && npx tsc --noEmit
+npm run build:static      # client-only static export in out/ (no Node server; see docs/guide.md)
 ```
 Env vars are listed in `.env.example` (`NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_REQUIRE_BLINK`, `NEXT_PUBLIC_EMBEDDING_WEBGPU`). E2E with a fake webcam: `e2e/face-flow.mjs`. Setup instructions are in the file header, and it needs playwright.
 
@@ -45,7 +46,7 @@ flutter run --dart-define=FRS_API=http://<lan-ip>:5000   # also REQUIRE_BLINK=fa
 
 CI (`.github/workflows/ci.yml`) runs exactly these: `pytest -q`; `npm test`, lint, `tsc`; `flutter analyze`, `flutter test`. `.github/workflows/docker.yml` builds the `frs-api` and `frs-web` images and pushes them to Docker Hub.
 
-Full stack: `docker compose up -d` (http://localhost:3000). The web image proxies `/api/v1/*` to the `api` service (`FRS_API_PROXY_URL`, baked at build time).
+Full stack in one command: `./run.sh` (no Docker: venv + npm, Qdrant local mode in `.run/qdrant`, or remote via `QDRANT_URL`; `--prod`, `--memory`, `--no-blink`, `test`, `mobile`, `reset`) or `./docker.sh` (Compose: `start|stop|status|logs|reset`). Both pick free ports (macOS AirPlay holds 5000) and must stay bash 3.2 compatible. Plain `docker compose up -d` (http://localhost:3000) also works. The web image proxies `/api/v1/*` to the `api` service (`FRS_API_PROXY_URL`, baked at build time).
 
 ## Architecture
 
