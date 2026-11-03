@@ -149,3 +149,6 @@ cython_debug/
 # log files
 *.log
 *.log.[0-9]{0,3}
+# Vercel
+.vercel
+.env.local

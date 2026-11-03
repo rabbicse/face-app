@@ -23,6 +23,10 @@ fits free tiers end to end:
 Time needed: about 15 minutes. You need a GitHub account with this repository (or your fork), a Vercel
 account (sign in with GitHub) and a Qdrant Cloud account.
 
+**Shortcut:** after step 1, put `VERCEL_TOKEN` (from vercel.com/account/tokens) in `.run/vercel-token.txt` and
+`QDRANT_URL` / `QDRANT_API_KEY` in `.run/qdrant.env` (both git-ignored), then run `./deploy-vercel.sh`. It does
+steps 2-4 for you. Revoke the token afterwards.
+
 ## Step 1 - Create the database (Qdrant Cloud)
 
 1. Go to <https://cloud.qdrant.io>, sign up and choose **Create cluster -> Free**. Pick the region closest

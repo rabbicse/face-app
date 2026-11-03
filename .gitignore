@@ -155,3 +155,4 @@ node_modules/
 
 # ./run.sh and ./docker.sh state (local face database, build markers)
 .run/
+*token*.txt

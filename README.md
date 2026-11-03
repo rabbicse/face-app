@@ -7,7 +7,9 @@ video never leave it: the server only stores and searches numeric face signature
   <img src="docs/images/05-scan-turn.webp" alt="Live face scan: guide ellipse with progress, a head-pose aim pad, 3D head axes and step pills" width="680">
 </p>
 
-**Try it in one command** (you need a webcam, plus Python 3.11+ and Node.js 22.12+, or Docker):
+**Live demo: <https://frs-web-seven.vercel.app>** (needs a webcam; it's a shared demo on free tiers, so the first load can be slow and anyone can register faces. Don't use a face you want kept private.)
+
+**Or run it yourself in one command** (you need a webcam, plus Python 3.11+ and Node.js 22.12+, or Docker):
 
 ```bash
 git clone https://github.com/rabbicse/face-app.git && cd face-app
