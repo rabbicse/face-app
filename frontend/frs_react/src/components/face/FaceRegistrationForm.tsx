@@ -3,11 +3,13 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CameraConsent } from "@/components/face/CameraConsent";
 import { CameraProblem, ENGINE_ERROR_MESSAGE } from "@/components/face/CameraProblem";
+import { CameraLoading, CameraPreparing, CameraSuccess, ScanStatus, ScanTone } from "@/components/face/ScanUi";
+import { cn } from "@/lib/utils";
 import { FACE_CONFIG } from "@/face/config";
 import { registerEmbeddings } from "@/face/api";
 import { QUALITY_MESSAGES } from "@/face/core/quality";
@@ -60,6 +62,7 @@ const FaceRegistrationForm = () => {
 
     const [phase, setPhase] = useState<Phase>("capturing");
     const [message, setMessage] = useState("Initializing camera...");
+    const [statusTone, setStatusTone] = useState<ScanTone>("idle");
     const [progress, setProgress] = useState(session.progress);
     const [uploadFailed, setUploadFailed] = useState(false);
 
@@ -77,6 +80,7 @@ const FaceRegistrationForm = () => {
         setPhase("uploading");
         setUploadFailed(false);
         setMessage("Saving your face profile...");
+        setStatusTone("working");
         try {
             await registerEmbeddings(
                 { person_id: personIdFromEmail(email || fullname), name: fullname, email },
@@ -89,6 +93,7 @@ const FaceRegistrationForm = () => {
             console.warn("registration upload failed", e);
             setUploadFailed(true);
             setMessage("Your face profile was not saved");
+            setStatusTone("error");
             setPhase("failed");
         }
     }, [email, fullname, router, session]);
@@ -102,11 +107,13 @@ const FaceRegistrationForm = () => {
 
         if (!face || !target) {
             setMessage(face ? "Done" : "No face detected");
+            setStatusTone(face ? "success" : "idle");
         } else if (!session.wants(face.pose, ts)) {
             tone = "warn";
             const rel = session.relativePose(face.pose);
             const hint = poseHint(rel.yaw, rel.pitch, target.label);
             setMessage(`${target.instruction}${hint ? `. ${hint}.` : ""}`);
+            setStatusTone("working");
         } else if (engine.embedderBusy || ts - lastEmbedAt.current < 1000 / FACE_CONFIG.maxEmbeddingsPerSecond) {
             // right pose, but no embedding is due on this frame: skip the warp + readback, keep the last verdict
             tone = lastTone.current === "warn" ? "warn" : "good";
@@ -116,15 +123,18 @@ const FaceRegistrationForm = () => {
             if (!aligned.quality.ok) {
                 tone = "warn";
                 setMessage(QUALITY_MESSAGES[aligned.quality.issues[0]]);
+                setStatusTone("warn");
             } else {
                 tone = "good";
                 setMessage(`${target.instruction}. Hold still.`);
+                setStatusTone("working");
                 const pose = face.pose;
                 const quality = aligned.quality.score;
                 void engine.embed(aligned).then(({ embedding }) => {
                     const result = session.offer({ embedding, pose, quality, timestamp: performance.now() });
                     if (result === "inconsistent") {
                         setMessage("Only one person please");
+                        setStatusTone("warn");
                     }
                     if (result === "accepted" || result === "complete") {
                         setProgress(session.progress);
@@ -137,7 +147,11 @@ const FaceRegistrationForm = () => {
         }
         lastTone.current = tone;
         if (overlayRef.current) {
-            drawOverlay(overlayRef.current, w, h, face, tone, session.fraction);
+            drawOverlay(overlayRef.current, w, h, face, tone, {
+                progress: session.fraction,
+                axes: true,
+                aim: face && target ? { current: session.relativePose(face.pose), target: POSE_TARGETS[target.label] } : undefined,
+            });
         }
     });
 
@@ -149,8 +163,8 @@ const FaceRegistrationForm = () => {
     if (!identity) {
         return (
             <Card className="w-full max-w-xl">
-                <CardContent className="space-y-4 p-6">
-                    <h1 className="text-xl font-semibold">Start with your name and email</h1>
+                <CardContent className="space-y-5 p-5 sm:p-8">
+                    <h1 className="text-2xl font-semibold tracking-tight">Start with your name and email</h1>
                     <p className="text-muted-foreground">Your face profile needs a name and email before the scan.</p>
                     <Button asChild className="h-11 w-full"><Link href="/registration">Create an account</Link></Button>
                 </CardContent>
@@ -161,7 +175,7 @@ const FaceRegistrationForm = () => {
     if (!cameraOn) {
         return (
             <Card className="w-full max-w-xl">
-                <CardContent className="p-6">
+                <CardContent className="p-6 sm:p-8">
                     <CameraConsent
                         title="Before we scan your face"
                         intro="Your camera stays off until you agree. You'll hold still, then turn your head slightly in a few directions."
@@ -182,49 +196,44 @@ const FaceRegistrationForm = () => {
 
     return (
         <Card className="w-full max-w-xl">
-            <CardContent className="space-y-4 p-6">
-                <h1 className="text-xl font-semibold">Scan your face</h1>
+            <CardContent className="space-y-5 p-5 sm:p-8">
+                <h1 className="text-2xl font-semibold tracking-tight">Scan your face</h1>
 
                 {/* stays mounted when hidden: "Try again" restarts the camera on the same video element */}
                 <FaceCamera ref={videoRef} overlayRef={overlayRef} className={`aspect-[4/3] w-full ${fatal ? "hidden" : ""}`}>
-                    {(!engine || !cameraReady) && !fatal && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
-                            <Loader2 className="h-8 w-8 animate-spin" />
-                            <p className="mt-2 text-sm">{engine ? "Starting camera..." : "Loading face models..."}</p>
-                        </div>
-                    )}
-                    {phase === "done" && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
-                            <CheckCircle2 className="h-12 w-12 text-green-400" />
-                            <p className="mt-2 text-lg font-semibold">Face enrolled successfully!</p>
-                            <p className="text-sm">Taking you to sign in...</p>
-                        </div>
-                    )}
+                    {!cameraReady && !fatal && <CameraLoading label="Starting camera..." />}
+                    {cameraReady && !engine && !fatal && <CameraPreparing />}
+                    {phase === "done" && <CameraSuccess title="Face enrolled successfully!" detail="Taking you to sign in..." />}
                 </FaceCamera>
 
                 {fatal ? (
                     <CameraProblem message={fatal} backHref="/registration"
                         onRetry={engineError ? () => window.location.reload() : retryCamera} />
                 ) : (
-                    <>
-                        <p className="min-h-6 text-center font-medium" aria-hidden="true">{message}</p>
-                        <p className="sr-only" aria-live="polite">{announcement}</p>
-                    </>
+                    <ScanStatus message={phase === "done" ? "Your face profile is saved" : message}
+                        tone={phase === "done" ? "success" : statusTone} announcement={announcement} />
                 )}
 
                 <ol className="flex flex-wrap justify-center gap-2" aria-label="Scan progress">
-                    {progress.map(p => (
-                        <li key={p.label}
-                            aria-current={session.currentTarget?.label === p.label ? "step" : undefined}
-                            className={`rounded-full px-3 py-1 text-xs ${p.have >= p.need ? "bg-green-600 text-white" : session.currentTarget?.label === p.label ? "bg-blue-600 text-white" : "bg-muted"}`}>
-                            {POSE_NAMES[p.label]} {p.have}/{p.need}
-                        </li>
-                    ))}
+                    {progress.map(p => {
+                        const done = p.have >= p.need;
+                        const current = !done && session.currentTarget?.label === p.label;
+                        return (
+                            <li key={p.label} aria-current={current ? "step" : undefined}
+                                className={cn("inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium tabular-nums transition-colors duration-300",
+                                    done && "bg-success-soft text-success",
+                                    current && "bg-primary text-primary-foreground shadow-[0_2px_8px_-2px_hsl(var(--primary)/0.6)]",
+                                    !done && !current && "bg-muted text-muted-foreground")}>
+                                {done && <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />}
+                                {POSE_NAMES[p.label]} {p.have}/{p.need}
+                            </li>
+                        );
+                    })}
                 </ol>
 
                 {phase === "failed" && uploadFailed && (
                     <div role="alert" className="space-y-2 text-center">
-                        <p className="text-sm font-medium text-red-700">
+                        <p className="text-sm font-medium text-destructive">
                             We couldn&apos;t reach the server. Your scan is still here, so you won&apos;t need to repeat it.
                         </p>
                         <Button className="h-11" onClick={submit}>Try saving again</Button>
@@ -233,7 +242,7 @@ const FaceRegistrationForm = () => {
 
                 {phase !== "done" && !fatal && (
                     <p className="text-center text-sm">
-                        <Link className="underline underline-offset-4" href="/registration">Cancel and go back</Link>
+                        <Link className="link font-normal text-muted-foreground decoration-muted-foreground/40" href="/registration">Cancel and go back</Link>
                     </p>
                 )}
             </CardContent>

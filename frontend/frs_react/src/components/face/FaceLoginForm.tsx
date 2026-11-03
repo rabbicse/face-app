@@ -3,10 +3,10 @@
 import React, { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { CameraConsent } from "@/components/face/CameraConsent";
 import { CameraProblem, ENGINE_ERROR_MESSAGE } from "@/components/face/CameraProblem";
+import { CameraLoading, CameraPreparing, CameraSuccess, ScanStatus, ScanTone } from "@/components/face/ScanUi";
 import { FACE_CONFIG } from "@/face/config";
 import { identifyEmbedding, PersonInfo } from "@/face/api";
 import { IdentificationAggregator } from "@/face/core/identification";
@@ -41,6 +41,7 @@ const FaceLoginForm = () => {
     const nextQueryAt = useRef(0);
 
     const [message, setMessage] = useState("Look at the camera");
+    const [tone, setTone] = useState<ScanTone>("idle");
     const [person, setPerson] = useState<PersonInfo | null>(null);
 
     const query = async (embedding: Float32Array) => {
@@ -49,15 +50,23 @@ const FaceLoginForm = () => {
             const res = await identifyEmbedding(embedding);
             if (res.status === 0 && res.person) {
                 setPerson(res.person);
-                saveSignedIn({ personId: res.person.person_id, name: res.person.name, email: res.person.email, score: res.score });
+                const { person_id, name, email, phone, age, city, country, address } = res.person;
+                saveSignedIn({
+                    personId: person_id, name, score: res.score, signedInAt: Date.now(),
+                    // the API sends null for details that were never given
+                    email: email ?? undefined, phone: phone ?? undefined, age: age ?? undefined,
+                    city: city ?? undefined, country: country ?? undefined, address: address ?? undefined,
+                });
                 setTimeout(() => router.push("/dashboard"), 2000);
             } else {
                 setMessage(res.reason === "no_enrolled_faces" ? "No faces are registered yet. Create an account first." : "Face not recognized. Keep looking at the camera.");
+                setTone("warn");
                 nextQueryAt.current = performance.now() + RETRY_DELAY_MS;
             }
         } catch (e) {
             console.warn("identify failed", e);
             setMessage("Can't reach the server. Trying again...");
+            setTone("error");
             nextQueryAt.current = performance.now() + 3 * RETRY_DELAY_MS;
         } finally {
             queryInFlight.current = false;
@@ -74,6 +83,7 @@ const FaceLoginForm = () => {
             aggregator.reset();
             blink.reset();
             setMessage("No face detected");
+            setTone("idle");
         } else {
             if (face.eyesClosed !== undefined) blink.update(face.eyesClosed, ts);
             const live = !FACE_CONFIG.liveness.requireBlink || blink.hasRecentBlink(ts, FACE_CONFIG.liveness.blinkWindowMs);
@@ -87,10 +97,11 @@ const FaceLoginForm = () => {
             } else if (!aligned.quality.ok) {
                 tone = "warn";
                 setMessage(QUALITY_MESSAGES[aligned.quality.issues[0]]);
+                setTone("warn");
             } else {
                 tone = "good";
-                if (!live) setMessage("Please blink to continue");
-                else if (ts >= nextQueryAt.current) setMessage("Recognizing...");
+                if (!live) { setMessage("Please blink to continue"); setTone("working"); }
+                else if (ts >= nextQueryAt.current) { setMessage("Recognizing..."); setTone("working"); }
                 const canQuery = !queryInFlight.current && ts >= nextQueryAt.current;
                 if (canQuery && ts - lastEmbedAt.current >= minGap) {
                     lastEmbedAt.current = ts;
@@ -118,7 +129,7 @@ const FaceLoginForm = () => {
     if (!cameraOn) {
         return (
             <Card className="w-full max-w-xl">
-                <CardContent className="p-6">
+                <CardContent className="p-6 sm:p-8">
                     <CameraConsent
                         title="Sign in with your face"
                         intro="Your camera stays off until you turn it on."
@@ -131,8 +142,8 @@ const FaceLoginForm = () => {
                         backHref="/"
                         onAccept={() => setCameraOn(true)}
                     />
-                    <p className="mt-4 text-center text-sm text-muted-foreground">
-                        Not registered yet? <Link className="text-foreground underline underline-offset-4" href="/registration">Create an account</Link>
+                    <p className="mt-6 border-t pt-5 text-center text-sm text-muted-foreground">
+                        Not registered yet? <Link className="link" href="/registration">Create an account</Link>
                     </p>
                 </CardContent>
             </Card>
@@ -141,37 +152,24 @@ const FaceLoginForm = () => {
 
     return (
         <Card className="w-full max-w-xl">
-            <CardContent className="space-y-4 p-6">
-                <h1 className="text-xl font-semibold">Sign in with your face</h1>
+            <CardContent className="space-y-5 p-5 sm:p-8">
+                <h1 className="text-2xl font-semibold tracking-tight">Sign in with your face</h1>
                 {/* stays mounted when hidden: "Try again" restarts the camera on the same video element */}
                 <FaceCamera ref={videoRef} overlayRef={overlayRef} className={`aspect-[4/3] w-full ${fatal ? "hidden" : ""}`}>
-                    {(!engine || !cameraReady) && !fatal && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
-                            <Loader2 className="h-8 w-8 animate-spin" />
-                            <p className="mt-2 text-sm">{engine ? "Starting camera..." : "Loading face models..."}</p>
-                        </div>
-                    )}
-                    {person && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white">
-                            <CheckCircle2 className="h-12 w-12 text-green-400" />
-                            <h2 className="mt-2 text-xl font-bold">Welcome, {person.name}!</h2>
-                            <p className="text-sm">Taking you to your page...</p>
-                        </div>
-                    )}
+                    {!cameraReady && !fatal && <CameraLoading label="Starting camera..." />}
+                    {cameraReady && !engine && !fatal && <CameraPreparing />}
+                    {person && <CameraSuccess title={`Welcome, ${person.name}!`} detail="Taking you to your page..." />}
                 </FaceCamera>
                 {fatal ? (
                     <CameraProblem message={fatal} backHref="/"
                         onRetry={engineError ? () => window.location.reload() : retryCamera} />
                 ) : (
-                    <>
-                        <p className="min-h-6 text-center font-medium" aria-hidden="true">{status}</p>
-                        <p className="sr-only" aria-live="polite">{announcement}</p>
-                    </>
+                    <ScanStatus message={status} tone={person ? "success" : tone} announcement={announcement} />
                 )}
                 {!person && (
                     <div className="space-y-1 text-center text-sm text-muted-foreground">
-                        <p>Not registered yet? <Link className="text-foreground underline underline-offset-4" href="/registration">Create an account</Link></p>
-                        {!fatal && <p><Link className="text-foreground underline underline-offset-4" href="/">Back to start</Link></p>}
+                        <p>Not registered yet? <Link className="link" href="/registration">Create an account</Link></p>
+                        {!fatal && <p><Link className="link" href="/">Back to start</Link></p>}
                     </div>
                 )}
             </CardContent>

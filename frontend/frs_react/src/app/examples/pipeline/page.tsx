@@ -54,7 +54,7 @@ export default function PipelineInspectorPage() {
         const detectMs = performance.now() - t0;
         frameTimes.current = [...frameTimes.current.filter(t => ts - t < 1000), ts];
 
-        if (overlayRef.current) drawOverlay(overlayRef.current, video.videoWidth, video.videoHeight, face, face ? "good" : "neutral");
+        if (overlayRef.current) drawOverlay(overlayRef.current, video.videoWidth, video.videoHeight, face, face ? "good" : "neutral", { points: true, axes: true });
         if (!face) return;
         if (face.eyesClosed !== undefined) blink.current.update(face.eyesClosed, ts);
 
@@ -106,22 +106,26 @@ export default function PipelineInspectorPage() {
     ] : [];
 
     return (
-        <main className="mx-auto grid max-w-5xl gap-4 p-6 md:grid-cols-[3fr_2fr]">
+        <main className="mx-auto grid w-full max-w-5xl flex-1 content-start gap-5 px-4 pb-16 pt-4 sm:px-6 md:grid-cols-[3fr_2fr]">
+            <div className="space-y-1 md:col-span-2">
+                <h1 className="text-3xl font-semibold tracking-tight">Live pipeline inspector</h1>
+                <p className="text-muted-foreground">Each stage of the on-device pipeline, timed on this device.</p>
+            </div>
             <FaceCamera ref={videoRef} overlayRef={overlayRef} className="aspect-[4/3] w-full" />
             <Card>
                 <CardContent className="space-y-3 p-4 text-sm">
-                    {error && <p className="text-red-600">{error}</p>}
-                    {!engine && !error && <p>Loading models...</p>}
+                    {error && <p role="alert" className="rounded-lg bg-destructive-soft px-3 py-2 font-medium text-destructive">{error}</p>}
+                    {!engine && !error && <p className="text-muted-foreground">Loading models...</p>}
                     <div className="flex items-center gap-3">
-                        <canvas ref={cropRef} width={112} height={112} className="rounded border" title="aligned 112x112 crop fed to the model" />
+                        <canvas ref={cropRef} width={112} height={112} className="rounded-lg border bg-muted" title="aligned 112x112 crop fed to the model" />
                         <Button onClick={() => { reference.current = latest.current; }} disabled={!stats}>Set reference</Button>
                     </div>
                     <table className="w-full">
                         <tbody>
                             {rows.map(([k, v]) => (
                                 <tr key={k} className="border-b last:border-0">
-                                    <td className="py-1 pr-2 text-muted-foreground">{k}</td>
-                                    <td className="py-1 font-mono">{v}</td>
+                                    <td className="py-1.5 pr-2 text-muted-foreground">{k}</td>
+                                    <td className="whitespace-nowrap py-1.5 text-right font-mono tabular-nums">{v}</td>
                                 </tr>
                             ))}
                         </tbody>

@@ -6,7 +6,14 @@ export interface SignedInPerson {
     personId: number;
     name: string;
     email?: string;
+    phone?: string;
+    age?: number;
+    city?: string;
+    country?: string;
+    address?: string;
     score: number | null;
+    /** epoch ms */
+    signedInAt?: number;
 }
 
 export interface PendingEnrolment {

@@ -12,8 +12,30 @@ export interface LandmarkerHandle {
     delegate: "GPU" | "CPU";
 }
 
+/**
+ * MediaPipe's WASM build prints TensorFlow Lite start-up notes ("INFO: Created TensorFlow Lite XNNPACK delegate
+ * for CPU.") through console.error, which the Next.js dev overlay reports as an error. Drop exactly those
+ * informational lines; every other console.error passes through unchanged.
+ */
+const TFLITE_INFO = /^INFO: (Created|Initialized) TensorFlow Lite\b/;
+let consoleFiltered = false;
+
+export function isTfliteInfoMessage(args: unknown[]): boolean {
+    return typeof args[0] === "string" && TFLITE_INFO.test(args[0]);
+}
+
+function filterTfliteInfoLogs() {
+    if (consoleFiltered || typeof console === "undefined") return;
+    consoleFiltered = true;
+    const original = console.error.bind(console);
+    console.error = (...args: unknown[]) => {
+        if (!isTfliteInfoMessage(args)) original(...args);
+    };
+}
+
 /** MediaPipe Face Landmarker (detector + 478 point mesh with tracking): GPU delegate, CPU fallback. */
 export async function createLandmarker(opts: LandmarkerOptions): Promise<LandmarkerHandle> {
+    filterTfliteInfoLogs();
     const { FaceLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
     const fileset = await FilesetResolver.forVisionTasks(opts.wasmBase);
     let lastError: unknown;

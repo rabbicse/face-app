@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react";
+import { UserCheck, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,10 +49,13 @@ export default function ComparePage() {
     const similarity = faces[0] && faces[1] ? dot(faces[0].embedding, faces[1].embedding) : null;
 
     return (
-        <main className="mx-auto max-w-2xl space-y-4 p-6">
-            <h1 className="text-2xl font-bold">Compare two photos</h1>
-            {error && <p className="text-red-600">{error}</p>}
-            {!engine && !error && <p>Loading models...</p>}
+        <main className="mx-auto w-full max-w-2xl flex-1 space-y-6 px-4 pb-16 pt-6 sm:px-6 sm:pt-10">
+            <div className="space-y-2">
+                <h1 className="text-3xl font-semibold tracking-tight">Compare two photos</h1>
+                <p className="text-muted-foreground">Both photos are analysed in your browser. Nothing is uploaded.</p>
+            </div>
+            {error && <p role="alert" className="rounded-lg bg-destructive-soft px-3 py-2 font-medium text-destructive">{error}</p>}
+            {!engine && !error && <p className="text-muted-foreground">Loading models...</p>}
             <div className="grid grid-cols-2 gap-4">
                 {[0, 1].map(i => (
                     <Card key={i}>
@@ -61,17 +65,21 @@ export default function ComparePage() {
                                 onChange={e => onPick(i, e.target.files?.[0])} />
                             {faces[i] && (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img src={faces[i]!.preview} alt={`aligned face ${i + 1}`} width={112} height={112} className="rounded border" />
+                                <img src={faces[i]!.preview} alt={`aligned face ${i + 1}`} width={112} height={112} className="rounded-lg border bg-muted" />
                             )}
                         </CardContent>
                     </Card>
                 ))}
             </div>
-            {status && <p>{status}</p>}
+            {status && <p className="text-muted-foreground">{status}</p>}
             {similarity !== null && (
-                <p className="text-lg" data-testid="similarity">
-                    Cosine similarity: <span className="font-mono">{similarity.toFixed(3)}</span>{" "}
-                    {similarity >= THRESHOLD ? "- same person" : "- different people"}
+                <p data-testid="similarity"
+                    className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-4 py-3 text-lg ${similarity >= THRESHOLD ? "bg-success-soft text-success" : "bg-muted text-foreground"}`}>
+                    {similarity >= THRESHOLD
+                        ? <UserCheck className="size-5 shrink-0" aria-hidden="true" />
+                        : <Users className="size-5 shrink-0" aria-hidden="true" />}
+                    <span>Cosine similarity: <span className="font-mono font-semibold tabular-nums">{similarity.toFixed(3)}</span></span>
+                    <span className="font-medium">{similarity >= THRESHOLD ? "- same person" : "- different people"}</span>
                 </p>
             )}
         </main>

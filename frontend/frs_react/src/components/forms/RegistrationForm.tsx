@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { ArrowRight, UserRoundPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -32,16 +33,19 @@ export function RegistrationForm() {
   }, [router]);
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-md">
       <FacePreloader />
       <form onSubmit={handleSubmit}>
-        <CardHeader className="space-y-1">
-          <h1 className="text-2xl font-semibold leading-none tracking-tight">Create an account</h1>
-          <CardDescription>
+        <CardHeader className="space-y-3 p-6 sm:p-8 sm:pb-6">
+          <span className="grid size-12 place-items-center rounded-2xl bg-primary-soft text-primary">
+            <UserRoundPlus className="size-6" aria-hidden="true" />
+          </span>
+          <h1 className="text-2xl font-semibold tracking-tight">Create an account</h1>
+          <CardDescription className="text-base leading-relaxed">
             Your name is used to greet you when you sign in. Your email identifies your face profile.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4">
+        <CardContent className="grid gap-5 px-6 sm:px-8">
           <div className="grid gap-2">
             <Label htmlFor="fullname">Full name</Label>
             <Input id="fullname" type="text" autoComplete="name" required
@@ -56,11 +60,11 @@ export function RegistrationForm() {
               onChange={(e) => setEmail(e.target.value)} />
           </div>
         </CardContent>
-        <CardFooter className="flex-col gap-4">
-          <Button type="submit" className="h-11 w-full">Continue</Button>
+        <CardFooter className="flex-col gap-5 px-6 pb-6 sm:px-8 sm:pb-8">
+          <Button type="submit" className="h-11 w-full">Continue to face scan <ArrowRight aria-hidden="true" /></Button>
           <p className="text-sm text-muted-foreground">
             Already registered?{" "}
-            <Link href="/face/login" className="text-foreground underline underline-offset-4">Sign in with your face</Link>
+            <Link href="/face/login" className="link">Sign in with your face</Link>
           </p>
         </CardFooter>
       </form>
